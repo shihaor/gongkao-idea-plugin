@@ -110,7 +110,7 @@ public final class History {
                 correct += Math.max(0, result.correct);
             }
         }
-        if ("active".equals(status) && state.questionIndex > 0) {
+        if (!"completed".equals(status) && state.questionIndex > 0) {
             done += state.questionIndex;
         }
         record.completedQuestions = Math.min(done, Math.max(0, total));

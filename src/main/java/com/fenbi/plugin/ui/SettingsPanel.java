@@ -107,7 +107,7 @@ public class SettingsPanel extends JPanel {
                 .addComponent(hint("接 OpenClaw 则填 http://...:18789，并在 openclaw.json 打开 "
                         + "gateway.http.endpoints.chatCompletions.enabled。"), 1)
                 .addComponent(new TitledSeparator("关于"))
-                .addComponent(new JBLabel("刷帮帮 0.7.0"), 0)
+                .addComponent(new JBLabel("刷帮帮 0.7.1"), 0)
                 .addComponent(hint("非官方插件，仅个人学习使用。题库数据来自公开接口，改版后可能需要适配。"), 1)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
