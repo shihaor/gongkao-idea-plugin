@@ -41,7 +41,7 @@ public class BankPanel extends JPanel {
         essayTab = new EssayTab(host);
         wrongBookPanel = new WrongBookPanel(host);
         statsPanel = new StatsPanel();
-        historyPanel = new HistoryPanel();
+        historyPanel = new HistoryPanel(host);
         tabs.addTab("行测", categoryTab);
         tabs.addTab("申论", essayTab);
         tabs.addTab("错题本", wrongBookPanel);

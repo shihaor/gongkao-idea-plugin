@@ -45,6 +45,21 @@ public final class History {
         public int count;
     }
 
+    public static final class Wrong {
+        public String type = "";
+        public String stem = "";
+        public String your = "";
+        public String correct = "";
+    }
+
+    public static final class Module {
+        public String type = "";
+        public int total;
+        public int correct;
+        public int seconds;
+        public List<Wrong> wrong = new ArrayList<>();
+    }
+
     public static final class Record {
         public String planId = "";
         public String date = "";
@@ -55,6 +70,7 @@ public final class History {
         public int correct;
         public int elapsedSeconds;
         public List<Item> items = new ArrayList<>();
+        public List<Module> modules = new ArrayList<>();
     }
 
     /**
@@ -136,6 +152,21 @@ public final class History {
             for (PlanStore.Result result : state.results) {
                 done += Math.max(0, result.total);
                 correct += Math.max(0, result.correct);
+
+                Module module = new Module();
+                module.type = result.type;
+                module.total = result.total;
+                module.correct = result.correct;
+                module.seconds = result.seconds;
+                for (PlanStore.Wrong wrongEntry : result.wrong) {
+                    Wrong wrong = new Wrong();
+                    wrong.type = result.type;
+                    wrong.stem = wrongEntry.stem;
+                    wrong.your = wrongEntry.your;
+                    wrong.correct = wrongEntry.correct;
+                    module.wrong.add(wrong);
+                }
+                record.modules.add(module);
             }
         }
         if (!"completed".equals(status) && state.questionIndex > 0) {
@@ -171,6 +202,10 @@ public final class History {
                     Record record = gson.fromJson(element, Record.class);
                     if (record != null) {
                         if (record.items == null) record.items = new ArrayList<>();
+                        if (record.modules == null) record.modules = new ArrayList<>();
+                        for (Module module : record.modules) {
+                            if (module.wrong == null) module.wrong = new ArrayList<>();
+                        }
                         records.add(record);
                     }
                 }

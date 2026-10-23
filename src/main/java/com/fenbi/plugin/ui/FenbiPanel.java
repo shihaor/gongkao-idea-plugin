@@ -233,7 +233,7 @@ public class FenbiPanel extends JPanel implements Disposable {
         resumeBar.setVisible(true);
     }
 
-    private void resumePlan() {
+    public void resumePlan() {
         PlanStore.State state = PlanStore.getInstance().unfinishedToday();
         if (state == null) {
             updateResumeBar();

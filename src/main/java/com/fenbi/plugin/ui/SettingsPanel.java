@@ -109,7 +109,7 @@ public class SettingsPanel extends JPanel {
                 .addComponent(hint("上报地址留空时，交卷记录会发到网关的 /v1/chat/completions（会话 fenbi-idea-plugin）；"
                         + "也可以填 /hooks/wake 或自定义映射地址。"), 1)
                 .addComponent(new TitledSeparator("关于"))
-                .addComponent(new JBLabel("刷帮帮 0.8.1"), 0)
+                .addComponent(new JBLabel("刷帮帮 0.9.0"), 0)
                 .addComponent(hint("非官方插件，仅个人学习使用。题库数据来自公开接口，改版后可能需要适配。"), 1)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
