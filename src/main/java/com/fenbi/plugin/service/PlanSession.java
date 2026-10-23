@@ -245,8 +245,7 @@ public class PlanSession {
      * 每次交卷都按约定格式回传给 OpenClaw（累计到当前进度）。
      */
     private void sendPracticeResult() {
-        OpenClawClient client = host.openClaw();
-        if (!client.isHookConfigured() || state == null) return;
+        if (state == null || state.results.isEmpty()) return;
 
         List<PracticeResult.Module> modules = new ArrayList<>();
         for (PlanStore.Result result : state.results) {
@@ -259,12 +258,8 @@ public class PlanSession {
                     result.correct, result.seconds, wrong));
         }
         JsonObject json = PracticeResult.build(state.planId, state.date, modules, state.elapsedSeconds);
-        Async.run("回传做题记录", () -> {
-            client.wake(json.toString());
-            return null;
-        }, value -> {
-        }, error -> {
-        });
+        PlanStore.Result last = state.results.get(state.results.size() - 1);
+        host.reportResult(json.toString(), last.type);
     }
 
     private static String letter(String choice) {

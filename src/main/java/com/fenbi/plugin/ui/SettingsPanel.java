@@ -66,7 +66,7 @@ public class SettingsPanel extends JPanel {
 
         modelField.setToolTipText("填接口支持的模型名，如 deepseek-chat、gpt-4o-mini、openclaw/main");
         urlField.setToolTipText("OpenAI 兼容地址，如 https://api.deepseek.com 或 http://127.0.0.1:18789");
-        hookField.setToolTipText("可选。仅 OpenClaw 需要，填了就把完成结果推到 IM");
+        hookField.setToolTipText("可选。留空则走网关的 /v1/chat/completions；也可填 /hooks/wake 或映射地址");
 
         JPanel openClawButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         openClawButtons.setOpaque(false);
@@ -96,8 +96,8 @@ public class SettingsPanel extends JPanel {
                 .addLabeledComponent(new JBLabel("模型"), modelField)
                 .addLabeledComponent(new JBLabel("开始时间（点）"), hourSpinner)
                 .addLabeledComponent(new JBLabel("问询间隔（分钟）"), intervalSpinner)
-                .addLabeledComponent(new JBLabel("结果 Webhook"), hookField)
-                .addLabeledComponent(new JBLabel("Webhook Token"), hookTokenField)
+                .addLabeledComponent(new JBLabel("上报地址（可选）"), hookField)
+                .addLabeledComponent(new JBLabel("上报 Token（可选）"), hookTokenField)
                 .addComponent(openClawButtons, 4)
                 .addComponent(planStatus, 1)
                 .addComponent(hint("每天到点后按间隔向大模型问询今日计划（默认早上 9 点）；拿到计划后弹通知，点「开始」进入计划模式。"
@@ -106,8 +106,10 @@ public class SettingsPanel extends JPanel {
                         + "OpenAI → https://api.openai.com + gpt-4o-mini；Ollama → http://localhost:11434 + qwen2.5:7b。"), 1)
                 .addComponent(hint("接 OpenClaw 则填 http://...:18789，并在 openclaw.json 打开 "
                         + "gateway.http.endpoints.chatCompletions.enabled。"), 1)
+                .addComponent(hint("上报地址留空时，交卷记录会发到网关的 /v1/chat/completions（会话 fenbi-idea-plugin）；"
+                        + "也可以填 /hooks/wake 或自定义映射地址。"), 1)
                 .addComponent(new TitledSeparator("关于"))
-                .addComponent(new JBLabel("刷帮帮 0.8.0"), 0)
+                .addComponent(new JBLabel("刷帮帮 0.8.1"), 0)
                 .addComponent(hint("非官方插件，仅个人学习使用。题库数据来自公开接口，改版后可能需要适配。"), 1)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();

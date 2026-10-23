@@ -20,6 +20,8 @@ import java.util.function.Supplier;
  * - /hooks/wake 单向推送（让 agent 把反馈发到 IM）
  */
 public class OpenClawClient {
+    private static final String REPORT_SYSTEM =
+            "你是刷帮帮的记录助手。收到 practice_result JSON 后只回复 OK，不要展开分析，不要修改 JSON。";
     private final Supplier<String> baseUrl;
     private final Supplier<String> gatewayToken;
     private final Supplier<String> hookUrl;
@@ -43,6 +45,41 @@ public class OpenClawClient {
 
     public boolean isChatConfigured() {
         return !base().isBlank() && !safe(gatewayToken).isBlank();
+    }
+
+    /**
+     * 交卷记录是否可上报：填了上报地址，或配置了网关（走 chat completions）。
+     */
+    public boolean isReportConfigured() {
+        return !safe(hookUrl).isBlank() || isChatConfigured();
+    }
+
+    /**
+     * 上报一条交卷记录。
+     * - 上报地址留空：走网关的 /v1/chat/completions，会话键仍是 conv:fenbi-idea-plugin
+     * - 上报地址是 /v1/chat/completions：按 chat 请求发送
+     * - 其他地址：按 webhook 发送 {"text": ...}
+     */
+    public void report(String text) throws IOException {
+        String url = safe(hookUrl);
+        if (url.isBlank()) {
+            if (!isChatConfigured()) {
+                throw new IOException("未配置上报地址，也没有可用的网关");
+            }
+            chat(REPORT_SYSTEM, text);
+            return;
+        }
+        String token = safe(hookToken);
+        if (token.isBlank()) {
+            token = safe(gatewayToken);
+        }
+        if (url.contains("/v1/chat/completions") || url.contains("/v1/responses")) {
+            post(url, chatBody(REPORT_SYSTEM, text), token, 120);
+        } else {
+            JsonObject body = new JsonObject();
+            body.addProperty("text", text);
+            post(url, body.toString(), token, 30);
+        }
     }
 
     public String chatEndpoint() {
@@ -88,6 +125,14 @@ public class OpenClawClient {
         if (!isChatConfigured()) {
             throw new IOException("未配置接口地址或 API Key");
         }
+        long start = System.nanoTime();
+        String response = post(base() + "/v1/chat/completions", chatBody(system, user),
+                safe(gatewayToken), 120);
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+        return parseChat(response, elapsedMs);
+    }
+
+    private String chatBody(String system, String user) {
         JsonObject body = new JsonObject();
         body.addProperty("model", safe(model).isBlank() ? "openclaw/main" : safe(model));
         body.addProperty("user", "conv:fenbi-idea-plugin");
@@ -96,11 +141,7 @@ public class OpenClawClient {
         messages.add(message("system", system));
         messages.add(message("user", user));
         body.add("messages", messages);
-
-        long start = System.nanoTime();
-        String response = post(base() + "/v1/chat/completions", body.toString(), safe(gatewayToken), 120);
-        long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
-        return parseChat(response, elapsedMs);
+        return body.toString();
     }
 
     private static ChatResult parseChat(String response, long elapsedMs) throws IOException {

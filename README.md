@@ -260,8 +260,8 @@ curl -sS http://127.0.0.1:18789/v1/models \
 | 模型 | 如 `deepseek-chat`、`gpt-4o-mini`、`openclaw/main` |
 | 开始时间 | 默认 9 点，之后才开始轮询 |
 | 问询间隔 | 默认 150 分钟（2.5 小时） |
-| 结果 Webhook | 可选，仅 OpenClaw：`http://127.0.0.1:18789/hooks/wake` |
-| Webhook Token | `hooks.token`，填了才会把反馈推到 IM |
+| 上报地址（可选） | 留空则走网关的 `/v1/chat/completions`；也可填 `/hooks/wake` 或映射地址 |
+| 上报 Token（可选） | 留空则用网关 Token |
 
 ### 计划协议
 
@@ -340,7 +340,8 @@ curl -sS http://127.0.0.1:18789/v1/models \
 - 计划模式按**累计进度**发送，`modules` 是已完成的所有项
 - 手动练习的 `planId` 为 `manual-yyyyMMdd-HHmm`
 - `reason` / `note` / `selfComment` 由插件留空，交给 OpenClaw 侧分析填充
-- 回传目标是「结果 Webhook」，未配置时不会发送
+- **上报地址留空时**，通过网关的 `/v1/chat/completions` 发送，会话键仍是 `conv:fenbi-idea-plugin`（和拉取同一个会话）
+- 交卷后状态栏显示「已上报：逻辑填空」；失败会弹一次通知
 
 ### 调度规则
 
@@ -490,6 +491,16 @@ export JAVA_HOME=/Applications/IntelliJ\ IDEA.app/Contents/jbr/Contents/Home
 
 IDE 未启用 JCEF。`Help → Find Action → Registry`，确认
 `ide.browser.jcef.enabled` 已勾选，然后重启。
+</details>
+
+<details>
+<summary><b>OpenClaw 收不到交卷记录</b></summary>
+
+- 上报地址留空时，插件走网关的 `/v1/chat/completions`，会话键 `conv:fenbi-idea-plugin`
+- 只要「接口地址 + API Key」配好就会发，不需要额外配 hooks
+- 每次交卷后看状态栏是否出现「已上报：逻辑填空」
+- 失败会弹一次通知，点「去配置」检查地址/Token
+- 如果填了「上报地址」为 `/hooks/wake`，需要 `hooks.enabled` 和单独的 `hooks.token`
 </details>
 
 <details>

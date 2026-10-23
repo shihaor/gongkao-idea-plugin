@@ -70,6 +70,8 @@ public class FenbiPanel extends JPanel implements Disposable {
 
     private final JPanel resumeBar = new JPanel(new BorderLayout(8, 0));
     private final JLabel resumeLabel = new JBLabel("");
+    private final java.util.concurrent.atomic.AtomicBoolean reportFailureNotified =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     public FenbiPanel(Project project) {
         super(new BorderLayout());
@@ -383,15 +385,36 @@ public class FenbiPanel extends JPanel implements Disposable {
 
     private void sendManualResult(QuestionSet set, SolutionSet solutions,
                                   Map<Long, Integer> answers, int seconds) {
-        if (!openClaw.isHookConfigured()) return;
+        if (!openClaw.isReportConfigured()) return;
         String planId = "manual-" + LocalDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm"));
         JsonObject json = PracticeResult.buildManual(lastTitle, planId, set, solutions, answers, seconds);
-        Async.run("回传做题记录", () -> {
-            openClaw.wake(json.toString());
+        reportResult(json.toString(), lastTitle);
+    }
+
+    /**
+     * 上报一条交卷记录：留空上报地址时走网关 /v1/chat/completions。
+     */
+    public void reportResult(String json, String label) {
+        if (!openClaw.isReportConfigured()) {
+            statusLabel.setText("未配置上报地址，交卷记录未发送");
+            return;
+        }
+        Async.run("上报交卷记录", () -> {
+            openClaw.report(json);
             return null;
         }, value -> {
+            reportFailureNotified.set(false);
+            statusLabel.setText("已上报：" + label);
         }, error -> {
+            if (reportFailureNotified.compareAndSet(false, true)) {
+                Notification notification = NotificationGroupManager.getInstance()
+                        .getNotificationGroup("ShuaBangBang")
+                        .createNotification("刷帮帮 · 记录上报",
+                                "上报失败：" + error.getMessage(), NotificationType.WARNING);
+                notification.addAction(NotificationAction.createSimple("去配置", this::showSettings));
+                Notifications.Bus.notify(notification, project);
+            }
         });
     }
 
