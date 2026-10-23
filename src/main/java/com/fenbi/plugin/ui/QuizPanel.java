@@ -24,6 +24,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.IntConsumer;
 
 /**
  * 做题面板：JCEF 渲染题干与选项，点击选项通过 JS 桥回传。
@@ -52,6 +53,7 @@ public class QuizPanel extends JPanel implements Disposable {
     private long questionStart;
     private boolean submitting;
     private boolean submitted;
+    private IntConsumer progressListener;
 
     public QuizPanel(FenbiPanel host, Project project) {
         super(new BorderLayout());
@@ -158,8 +160,12 @@ public class QuizPanel extends JPanel implements Disposable {
     // ------------------------------------------------------------------ 生命周期
 
     public void start(QuestionSet questionSet) {
+        start(questionSet, 0);
+    }
+
+    public void start(QuestionSet questionSet, int startIndex) {
         this.set = questionSet;
-        this.index = 0;
+        this.index = Math.max(0, Math.min(startIndex, Math.max(0, questionSet.questions().size() - 1)));
         this.submitting = false;
         this.submitted = false;
         selected.clear();
@@ -193,6 +199,10 @@ public class QuizPanel extends JPanel implements Disposable {
         return set != null && !submitted && !set.questions().isEmpty();
     }
 
+    public void setProgressListener(IntConsumer progressListener) {
+        this.progressListener = progressListener;
+    }
+
     // ------------------------------------------------------------------ 渲染
 
     private void render() {
@@ -211,6 +221,10 @@ public class QuizPanel extends JPanel implements Disposable {
         progressBar.setValue(index + 1);
         prevButton.setEnabled(index > 0);
         nextButton.setText(index == total - 1 ? "交卷" : "下一题");
+
+        if (progressListener != null) {
+            progressListener.accept(index);
+        }
 
         if (browser == null) return;
 

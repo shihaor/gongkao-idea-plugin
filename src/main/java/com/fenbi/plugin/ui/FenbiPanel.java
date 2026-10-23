@@ -7,9 +7,11 @@ import com.fenbi.plugin.model.Models.SolutionSet;
 import com.fenbi.plugin.service.FenbiApi;
 import com.fenbi.plugin.service.FenbiApi.LoginRequiredException;
 import com.fenbi.plugin.service.FenbiSession;
+import com.fenbi.plugin.service.History;
 import com.fenbi.plugin.service.OpenClawClient;
 import com.fenbi.plugin.service.PlanService;
 import com.fenbi.plugin.service.PlanSession;
+import com.fenbi.plugin.service.PlanStore;
 import com.fenbi.plugin.service.Stats;
 import com.fenbi.plugin.service.WrongBook;
 import com.fenbi.plugin.util.Async;
@@ -62,6 +64,9 @@ public class FenbiPanel extends JPanel implements Disposable {
     private long lastKeypointId;
     private PlanSession planSession;
 
+    private final JPanel resumeBar = new JPanel(new BorderLayout(8, 0));
+    private final JLabel resumeLabel = new JBLabel("");
+
     public FenbiPanel(Project project) {
         super(new BorderLayout());
         this.project = project;
@@ -86,10 +91,21 @@ public class FenbiPanel extends JPanel implements Disposable {
         deck.add(settingsPanel, CARD_SETTINGS);
 
         add(createHeader(), BorderLayout.NORTH);
-        add(deck, BorderLayout.CENTER);
+        JPanel center = new JPanel(new BorderLayout());
+        center.add(createResumeBar(), BorderLayout.NORTH);
+        center.add(deck, BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
+
+        quizPanel.setProgressListener(index -> {
+            if (planSession != null) {
+                PlanStore.getInstance().setQuestion(index);
+                updateResumeBar();
+            }
+        });
 
         showBank();
         updateStatus();
+        updateResumeBar();
         PlanService.getInstance().setListener(this::startPlan);
     }
 
@@ -153,6 +169,7 @@ public class FenbiPanel extends JPanel implements Disposable {
         cardLayout.show(deck, CARD_BANK);
         bankPanel.onShown();
         updateStatus();
+        updateResumeBar();
     }
 
     public void showSettings() {
@@ -174,12 +191,82 @@ public class FenbiPanel extends JPanel implements Disposable {
         }
     }
 
+    // ------------------------------------------------------------------ 断点续做
+
+    private JComponent createResumeBar() {
+        resumeBar.setBorder(JBUI.Borders.empty(4, 10));
+        resumeBar.setVisible(false);
+        resumeLabel.setFont(UIUtil.getLabelFont().deriveFont(11.5f));
+        resumeLabel.setForeground(UIUtil.getContextHelpForeground());
+        resumeBar.add(resumeLabel, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        actions.setOpaque(false);
+        JButton resume = new JButton("继续");
+        resume.addActionListener(e -> resumePlan());
+        JButton abandon = new JButton("放弃");
+        abandon.addActionListener(e -> abandonPlan());
+        actions.add(resume);
+        actions.add(abandon);
+        resumeBar.add(actions, BorderLayout.EAST);
+        return resumeBar;
+    }
+
+    private void updateResumeBar() {
+        PlanStore.State state = PlanStore.getInstance().unfinishedToday();
+        if (state == null || state.queue == null || state.queue.isEmpty()
+                || state.index >= state.queue.size()) {
+            resumeBar.setVisible(false);
+            return;
+        }
+        PlanStore.Item item = state.queue.get(state.index);
+        int total = Math.max(1, item.count);
+        int current = Math.min(state.questionIndex + 1, total);
+        resumeLabel.setText("上次计划未完成：" + (state.index + 1) + "/" + state.queue.size()
+                + " 项 · 第 " + current + "/" + total + " 题（" + item.type + "）");
+        resumeBar.setVisible(true);
+    }
+
+    private void resumePlan() {
+        PlanStore.State state = PlanStore.getInstance().unfinishedToday();
+        if (state == null) {
+            updateResumeBar();
+            return;
+        }
+        if (!ensureLogin()) return;
+        planSession = new PlanSession(state, this);
+        cardLayout.show(deck, CARD_BANK);
+        planSession.resume();
+    }
+
+    private void abandonPlan() {
+        int answer = Messages.showYesNoDialog(project,
+                "放弃这次未完成的计划？进度会被清空。", "刷帮帮", Messages.getQuestionIcon());
+        if (answer != Messages.YES) return;
+        PlanStore.State state = PlanStore.getInstance().unfinishedToday();
+        if (state != null) {
+            History.getInstance().record(state, "abandoned");
+        }
+        PlanStore.getInstance().clear();
+        planSession = null;
+        updateResumeBar();
+    }
+
+    public void showPlanQuiz(PlanSession session, QuestionSet set, int startIndex) {
+        this.planSession = session;
+        this.lastTitle = set.title();
+        this.lastKeypointId = 0;
+        quizPanel.start(set, startIndex);
+        cardLayout.show(deck, CARD_QUIZ);
+        updateResumeBar();
+    }
+
     public void askPlanNow() {
         if (!ensureLogin()) return;
         settingsPanel.saveConfig();
         if (!PlanService.getInstance().isConfigured()) {
             Messages.showWarningDialog(project,
-                    "请先在「设置 → OpenClaw 联动」里填写网关 Token 并保存。", "刷帮帮");
+                    "请先在「设置 → 大模型 / OpenClaw」里填写网关 Token 并保存。", "刷帮帮");
             showSettings();
             return;
         }
@@ -284,6 +371,7 @@ public class FenbiPanel extends JPanel implements Disposable {
         cardLayout.show(deck, CARD_REVIEW);
         updateStatus();
         statusLabel.setText(planSession != null && planSession.hasNext() ? "计划进行中" : "已完成");
+        updateResumeBar();
     }
 
     // ------------------------------------------------------------------ 计划模式
@@ -294,11 +382,6 @@ public class FenbiPanel extends JPanel implements Disposable {
         planSession = new PlanSession(plan, this);
         cardLayout.show(deck, CARD_BANK);
         planSession.start();
-    }
-
-    public void startPlanItem(PlanSession session, String title, long keypointId) {
-        this.planSession = session;
-        startQuizInternal(title, keypointId);
     }
 
     public void setStatusText(String text) {

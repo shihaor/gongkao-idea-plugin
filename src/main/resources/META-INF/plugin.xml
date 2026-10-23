@@ -24,6 +24,8 @@
         <applicationService serviceImplementation="com.fenbi.plugin.service.SecureConfig"/>
         <applicationService serviceImplementation="com.fenbi.plugin.service.WrongBook"/>
         <applicationService serviceImplementation="com.fenbi.plugin.service.Stats"/>
+        <applicationService serviceImplementation="com.fenbi.plugin.service.PlanStore"/>
+        <applicationService serviceImplementation="com.fenbi.plugin.service.History"/>
         <postStartupActivity implementation="com.fenbi.plugin.PlanStartupActivity"/>
         <notificationGroup id="ShuaBangBang" displayType="BALLOON"/>
     </extensions>

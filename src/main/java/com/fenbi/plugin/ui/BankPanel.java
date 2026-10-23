@@ -32,6 +32,7 @@ public class BankPanel extends JPanel {
     private final EssayTab essayTab;
     private final WrongBookPanel wrongBookPanel;
     private final StatsPanel statsPanel;
+    private final HistoryPanel historyPanel;
 
     public BankPanel(FenbiPanel host) {
         super(new BorderLayout());
@@ -40,10 +41,12 @@ public class BankPanel extends JPanel {
         essayTab = new EssayTab(host);
         wrongBookPanel = new WrongBookPanel(host);
         statsPanel = new StatsPanel();
+        historyPanel = new HistoryPanel();
         tabs.addTab("行测", categoryTab);
         tabs.addTab("申论", essayTab);
         tabs.addTab("错题本", wrongBookPanel);
         tabs.addTab("统计", statsPanel);
+        tabs.addTab("历史", historyPanel);
         add(tabs, BorderLayout.CENTER);
     }
 
@@ -52,11 +55,13 @@ public class BankPanel extends JPanel {
         essayTab.loadIfNeeded();
         wrongBookPanel.refresh();
         statsPanel.refresh();
+        historyPanel.refresh();
     }
 
     public void dispose() {
         wrongBookPanel.dispose();
         statsPanel.dispose();
+        historyPanel.dispose();
     }
 
     public void reload() {

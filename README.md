@@ -45,6 +45,8 @@
 | **逐题作答** | 题干 / 选项 / 图片原样渲染，点选项作答，`1`~`4` 快速选择；交卷后统一展示对错与解析 |
 | **错题本** | 答错的题自动加密收录，可回看解析、按考点重练、删除或清空 |
 | **练习统计** | 近 7 天题量、正确率、分类正确率、连续天数，交卷自动累计 |
+| **断点续做** | 计划、题号、已完成小结加密保存在本地，退出 IDE 后一键继续 |
+| **历史记录** | 每次计划一条记录，显示完成百分比、正确率、用时，最多保留 200 条 |
 | **OpenClaw 联动** | 手动或定时向 OpenClaw 问询「题型 + 数量」，按计划串行组卷；做完自动回传成绩并展示薄弱点分析 |
 | **休息计划** | 大模型判断今天该休息时返回 `rest: true`，插件只提醒、不组卷 |
 | **配置加密** | 地址、Token、Cookie 等统一 AES-256-GCM 加密落盘，不写明文 |
@@ -143,6 +145,30 @@ Settings → Plugins → ⚙ → Install Plugin from Disk… → 选择 zip → 
 - 近 7 天分类正确率（按题量排序，绿色 ≥75%，黄色 <60%）
 
 数据加密保存在 `~/.fenbi-plugin/stats.bin`，保留最近 60 天。手动练习和计划模式都会累计。
+
+### 断点续做
+
+做计划时中途退出 IDE、或返回题库，面板顶部会出现：
+
+```
+上次计划未完成：2/4 项 · 第 5/10 题（资料分析）    [继续] [放弃]
+```
+
+- 点「继续」直接回到上次那道题，已选项由题库接口恢复
+- 点「放弃」清空这次计划的进度
+- 计划、exerciseId、题号、已完成项的小结都加密存在 `~/.fenbi-plugin/plan-state.bin`
+- 同一天多个 IDE 实例共享「已拉取」标记，不会重复问询大模型
+
+> 只保留当天的计划；跨天后不会提示续做。
+
+### 历史记录
+
+题库页第五个页签「历史」：
+
+- 每次计划**完成或中断**都会留下一条记录
+- 显示**完成百分比**（完成题数 / 计划题数）、正确率、用时、题型明细
+- 正在做的计划排在最上面，标注「进行中」
+- 最多保留 200 条，加密保存在 `~/.fenbi-plugin/history.bin`
 
 ### 快捷键
 
@@ -305,6 +331,8 @@ curl -sS http://127.0.0.1:18789/v1/models \
 ~/.fenbi-plugin/config.bin      # 配置
 ~/.fenbi-plugin/wrongbook.bin   # 错题本（最多 500 题）
 ~/.fenbi-plugin/stats.bin       # 练习统计（最近 60 天）
+~/.fenbi-plugin/plan-state.bin  # 未完成计划与进度
+~/.fenbi-plugin/history.bin     # 历史做题记录（最多 200 条）
 ```
 
 - 算法：**AES-256-GCM**（随机 IV）
@@ -375,12 +403,15 @@ export JAVA_HOME=/Applications/IntelliJ\ IDEA.app/Contents/jbr/Contents/Home
 │   │   ├── PlanSession.java          # 一次计划的执行与汇总
 │   │   ├── WrongBook.java            # 本地错题本（AES-GCM）
 │   │   ├── Stats.java                # 练习统计（AES-GCM）
+│   │   ├── PlanStore.java            # 未完成计划与进度（AES-GCM）
+│   │   ├── History.java              # 历史做题记录（AES-GCM）
 │   │   └── SecureConfig.java         # AES-GCM 配置存储
 │   ├── ui/
 │   │   ├── FenbiPanel.java           # 主面板与导航
-│   │   ├── BankPanel.java            # 题库 / 申论 / 错题本 / 统计
+│   │   ├── BankPanel.java            # 题库 / 申论 / 错题本 / 统计 / 历史
 │   │   ├── WrongBookPanel.java       # 错题本列表与详情
 │   │   ├── StatsPanel.java           # 近 7 天统计图表
+│   │   ├── HistoryPanel.java         # 历史完成百分比
 │   │   ├── QuizPanel.java            # 做题
 │   │   ├── ReviewPanel.java          # 成绩与解析
 │   │   ├── EssayPanel.java           # 申论
@@ -431,6 +462,21 @@ export JAVA_HOME=/Applications/IntelliJ\ IDEA.app/Contents/jbr/Contents/Home
 
 IDE 未启用 JCEF。`Help → Find Action → Registry`，确认
 `ide.browser.jcef.enabled` 已勾选，然后重启。
+</details>
+
+<details>
+<summary><b>退出后计划没了 / 无法继续</b></summary>
+
+会把计划和进度加密保存在 `~/.fenbi-plugin/plan-state.bin`。
+重新打开 IDE，面板顶部会出现「上次计划未完成」，点「继续」即可回到上次的题号。
+只保留当天的计划；跨天后需要重新拉取。
+</details>
+
+<details>
+<summary><b>同一天被问了三次计划</b></summary>
+
+旧版本只在当前 IDE 的配置里记「已拉取」，多个 IDE 实例会各自问一次。
+新版本改用 `~/.fenbi-plugin/plan-state.bin` 共享标记，同一天只问一次。
 </details>
 
 <details>

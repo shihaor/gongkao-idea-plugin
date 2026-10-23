@@ -29,36 +29,51 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 一次「计划」的执行过程：按考点串行组卷，记录每项成绩，最后汇总回传 OpenClaw。
+ * 一次「计划」的执行过程：按考点串行组卷，记录每项成绩，最后汇总回传。
+ * 进度写入 PlanStore，退出 IDE 后可恢复。
  */
 public class PlanSession {
     private static final String ANALYSIS_SYSTEM = "你是我的学习教练。请用中文分析，直接给结论，不要客套。";
 
-    private final Plan plan;
     private final FenbiPanel host;
-    private final List<Resolved> queue = new ArrayList<>();
-    private final List<PlanItemResult> results = new ArrayList<>();
-    private final long startedAt = System.currentTimeMillis();
-
-    private int index;
+    private final Plan plan;
+    private PlanStore.State state;
+    private final boolean resuming;
     private boolean finished;
-
-    private record Resolved(PlanItem item, Category category, String fullPath) {
-    }
 
     private record Node(Category category, String fullPath) {
     }
 
     public PlanSession(Plan plan, FenbiPanel host) {
-        this.plan = plan;
         this.host = host;
+        this.plan = plan;
+        this.resuming = false;
     }
 
-    // ------------------------------------------------------------------ 解析考点
+    public PlanSession(PlanStore.State state, FenbiPanel host) {
+        this.host = host;
+        this.state = state;
+        this.resuming = true;
+        List<PlanItem> items = new ArrayList<>();
+        for (PlanStore.Item item : state.items) {
+            items.add(new PlanItem(item.type, List.of(), item.count));
+        }
+        this.plan = new Plan(state.planId, state.date, state.deadline, state.note, items, false);
+    }
+
+    // ------------------------------------------------------------------ 开始 / 恢复
 
     public void start() {
         host.setStatusText("正在解析计划考点…");
         Async.run("解析计划", () -> host.api().categories(), this::onCategories, host::handleError);
+    }
+
+    public void resume() {
+        if (state == null || state.queue.isEmpty()) {
+            host.handleError(new IOException("没有可恢复的计划"));
+            return;
+        }
+        startCurrent();
     }
 
     private void onCategories(List<Category> roots) {
@@ -66,13 +81,19 @@ public class PlanSession {
         flatten(roots, "", nodes);
 
         List<String> missing = new ArrayList<>();
+        List<PlanStore.Item> queue = new ArrayList<>();
         for (PlanItem item : plan.items()) {
             Node node = find(nodes, item);
             if (node == null) {
                 missing.add(item.type());
-            } else {
-                queue.add(new Resolved(item, node.category(), node.fullPath()));
+                continue;
             }
+            PlanStore.Item resolved = new PlanStore.Item();
+            resolved.type = item.type();
+            resolved.path = node.fullPath();
+            resolved.keypointId = node.category().id();
+            resolved.count = item.count();
+            queue.add(resolved);
         }
 
         if (queue.isEmpty()) {
@@ -82,7 +103,11 @@ public class PlanSession {
         if (!missing.isEmpty()) {
             host.setStatusText("未匹配：" + String.join("、", missing));
         }
-        index = 0;
+        PlanStore.State previous = PlanStore.getInstance().unfinishedToday();
+        if (previous != null && !previous.planId.equals(plan.planId())) {
+            History.getInstance().record(previous, "abandoned");
+        }
+        state = PlanStore.getInstance().begin(plan, queue);
         startCurrent();
     }
 
@@ -113,9 +138,7 @@ public class PlanSession {
                 }
             }
         }
-        if (pool.isEmpty()) {
-            return null;
-        }
+        if (pool.isEmpty()) return null;
         if (!item.path().isEmpty()) {
             for (Node node : pool) {
                 boolean matched = true;
@@ -125,36 +148,48 @@ public class PlanSession {
                         break;
                     }
                 }
-                if (matched) {
-                    return node;
-                }
+                if (matched) return node;
             }
         }
         return pool.get(0);
     }
 
     private void startCurrent() {
-        Resolved resolved = queue.get(index);
-        String title = resolved.item().type();
-        host.setStatusText("计划 " + (index + 1) + "/" + queue.size() + "：" + title);
-        host.startPlanItem(this, title + "（" + (index + 1) + "/" + queue.size() + "）", resolved.category().id());
+        if (state == null || state.index >= state.queue.size()) {
+            finish();
+            return;
+        }
+        PlanStore.Item item = state.queue.get(state.index);
+        host.setStatusText("计划 " + (state.index + 1) + "/" + state.queue.size() + "：" + item.type);
+
+        Async.run("组卷", () -> {
+            long exerciseId = state.exerciseId > 0
+                    ? state.exerciseId
+                    : host.api().createExercise(item.keypointId, item.count);
+            PlanStore.getInstance().setExercise(exerciseId);
+            return host.api().loadQuestions(exerciseId, item.type);
+        }, set -> {
+            if (set.questions().isEmpty()) {
+                host.handleError(new IOException("没有取到题目，换一个考点试试"));
+                return;
+            }
+            host.showPlanQuiz(this, set, Math.max(0, state.questionIndex));
+        }, host::handleError);
     }
 
     public boolean hasNext() {
-        return index + 1 < queue.size();
+        return state != null && state.index < state.queue.size();
     }
 
     public void next() {
-        if (!hasNext()) return;
-        index++;
         startCurrent();
     }
 
     // ------------------------------------------------------------------ 记录成绩
 
     public void recordResult(QuestionSet set, SolutionSet solutions, Map<Long, Integer> answers, int seconds) {
-        if (index >= queue.size()) return;
-        Resolved resolved = queue.get(index);
+        if (state == null || state.index >= state.queue.size()) return;
+        PlanStore.Item item = state.queue.get(state.index);
 
         Map<Long, Solution> byId = new HashMap<>();
         for (Solution solution : solutions.solutions()) {
@@ -180,12 +215,24 @@ public class PlanSession {
             }
         }
 
-        results.add(new PlanItemResult(resolved.item().type(), resolved.fullPath(),
-                set.questions().size(), correct, seconds, wrong));
+        WrongBook.getInstance().record(set, solutions, answers, item.type, item.path, item.keypointId, "计划");
+        Stats.getInstance().record(set, solutions, answers, item.type, seconds);
 
-        WrongBook.getInstance().record(set, solutions, answers,
-                resolved.item().type(), resolved.fullPath(), resolved.category().id(), "计划");
-        Stats.getInstance().record(set, solutions, answers, resolved.item().type(), seconds);
+        PlanStore.Result result = new PlanStore.Result();
+        result.type = item.type;
+        result.path = item.path;
+        result.total = set.questions().size();
+        result.correct = correct;
+        result.seconds = Math.max(0, seconds);
+        for (WrongQuestion question : wrong) {
+            PlanStore.Wrong entry = new PlanStore.Wrong();
+            entry.questionId = question.questionId();
+            entry.stem = question.stem();
+            entry.your = question.your();
+            entry.correct = question.correct();
+            result.wrong.add(entry);
+        }
+        PlanStore.getInstance().complete(result);
 
         if (!hasNext()) {
             finish();
@@ -217,28 +264,43 @@ public class PlanSession {
 
         int total = 0;
         int correct = 0;
-        for (PlanItemResult result : results) {
-            total += result.total();
-            correct += result.correct();
+        int elapsed = state == null ? 0 : state.elapsedSeconds;
+
+        List<PlanItemResult> items = new ArrayList<>();
+        if (state != null) {
+            for (PlanStore.Result result : state.results) {
+                total += result.total;
+                correct += result.correct;
+                List<WrongQuestion> wrong = new ArrayList<>();
+                for (PlanStore.Wrong entry : result.wrong) {
+                    wrong.add(new WrongQuestion(entry.questionId, entry.stem, entry.your, entry.correct));
+                }
+                items.add(new PlanItemResult(result.type, result.path, result.total,
+                        result.correct, result.seconds, wrong));
+            }
         }
-        int elapsed = (int) ((System.currentTimeMillis() - startedAt) / 1000);
-        PlanReport report = new PlanReport(plan.planId(),
+
+        String planId = state == null ? plan.planId() : state.planId;
+        PlanReport report = new PlanReport(planId,
                 LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                elapsed, total, correct, results);
+                elapsed, total, correct, items);
 
         String json = toJson(report);
         saveLocal(json);
         String summary = summary(report);
 
+        History.getInstance().record(state, "completed");
+        PlanStore.getInstance().finish();
+
         OpenClawClient client = host.openClaw();
         if (!client.isChatConfigured()) {
-            String message = "未配置 OpenClaw，报告已保存到 ~/.fenbi-plugin/last-report.json。\n" + summary;
+            String message = "未配置大模型，报告已保存到 ~/.fenbi-plugin/last-report.json。\n" + summary;
             com.intellij.openapi.application.ApplicationManager.getApplication()
                     .invokeLater(() -> host.showAnalysis(message));
             return;
         }
 
-        host.setStatusText("OpenClaw 分析中…");
+        host.setStatusText("大模型分析中…");
         Async.run("大模型分析", () -> client.chat(ANALYSIS_SYSTEM,
                         "我是史皓燃。以下是我刚完成的刷帮帮练习结果（JSON）。请按你的安排分析，150 字以内，直接说结论：\n"
                                 + "1. 各考点正确率；2. 最薄弱的两个考点；3. 接下来继续刷还是休息，明天怎么练。\n"

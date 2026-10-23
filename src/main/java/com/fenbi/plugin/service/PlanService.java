@@ -136,7 +136,7 @@ public class PlanService {
 
     public boolean consumedToday() {
         String date = PropertiesComponent.getInstance().getValue(KEY_LAST_DATE, "");
-        return LocalDate.now().toString().equals(date);
+        return LocalDate.now().toString().equals(date) || PlanStore.getInstance().fetchedToday();
     }
 
     public static String lastPlanId() {
@@ -231,6 +231,7 @@ public class PlanService {
                 log(listener, "今天休息：" + (plan.note().isBlank() ? "不用刷题" : plan.note()));
                 props.setValue(KEY_LAST_ID, plan.planId());
                 props.setValue(KEY_LAST_DATE, LocalDate.now().toString());
+                PlanStore.getInstance().markFetched(plan);
                 lastError = "";
                 notifyPlan(plan, false);
                 finish(listener, true, "今天休息");
@@ -257,6 +258,7 @@ public class PlanService {
 
             props.setValue(KEY_LAST_ID, plan.planId());
             props.setValue(KEY_LAST_DATE, LocalDate.now().toString());
+            PlanStore.getInstance().markFetched(plan);
             lastError = "";
             notifyPlan(plan, !autoStart);
             if (autoStart) {
