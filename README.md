@@ -166,6 +166,7 @@ Settings → Plugins → ⚙ → Install Plugin from Disk… → 选择 zip → 
 题库页第五个页签「历史」：
 
 - 每次计划**完成或中断**都会留下一条记录
+- **拉题后立即出现一条「待开始」记录**，开始做题后变为「进行中」，百分比随题号实时更新
 - 显示**完成百分比**（完成题数 / 计划题数）、正确率、用时、题型明细
 - 正在做的计划排在最上面，标注「进行中」
 - 最多保留 200 条，加密保存在 `~/.fenbi-plugin/history.bin`
@@ -313,6 +314,33 @@ curl -sS http://127.0.0.1:18789/v1/models \
 - 分析结果显示在报告页顶部，并弹一条通知
 - 报告同时落盘到 `~/.fenbi-plugin/last-report.json`
 - 配置了 Webhook 时，还会把「成绩 + 分析」推送到 IM
+
+### 每次交卷的 practice_result
+
+每次交卷（手动练习、计划中的每一项）除了最终报告，还会立即向 Webhook 回传一条：
+
+```json
+{
+  "action": "practice_result",
+  "date": "2026-10-23",
+  "planId": "20261023-1413",
+  "submittedAt": "16:40",
+  "modules": [
+    { "type": "逻辑填空", "total": 12, "correct": 9, "wrong": 3, "accuracy": 75, "avgSecPerQ": 45 }
+  ],
+  "wrongItems": [
+    { "type": "逻辑填空", "reason": "", "note": "", "questionId": 123,
+      "stem": "……", "your": "B", "correct": "C" }
+  ],
+  "overall": { "total": 12, "correct": 9, "durationMin": 9 },
+  "selfComment": ""
+}
+```
+
+- 计划模式按**累计进度**发送，`modules` 是已完成的所有项
+- 手动练习的 `planId` 为 `manual-yyyyMMdd-HHmm`
+- `reason` / `note` / `selfComment` 由插件留空，交给 OpenClaw 侧分析填充
+- 回传目标是「结果 Webhook」，未配置时不会发送
 
 ### 调度规则
 

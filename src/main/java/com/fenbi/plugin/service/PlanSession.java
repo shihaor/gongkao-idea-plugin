@@ -234,9 +234,37 @@ public class PlanSession {
         }
         PlanStore.getInstance().complete(result);
 
+        sendPracticeResult();
+
         if (!hasNext()) {
             finish();
         }
+    }
+
+    /**
+     * 每次交卷都按约定格式回传给 OpenClaw（累计到当前进度）。
+     */
+    private void sendPracticeResult() {
+        OpenClawClient client = host.openClaw();
+        if (!client.isHookConfigured() || state == null) return;
+
+        List<PracticeResult.Module> modules = new ArrayList<>();
+        for (PlanStore.Result result : state.results) {
+            List<PracticeResult.WrongItem> wrong = new ArrayList<>();
+            for (PlanStore.Wrong entry : result.wrong) {
+                wrong.add(new PracticeResult.WrongItem(result.type, entry.questionId,
+                        entry.stem, entry.your, entry.correct));
+            }
+            modules.add(new PracticeResult.Module(result.type, result.total,
+                    result.correct, result.seconds, wrong));
+        }
+        JsonObject json = PracticeResult.build(state.planId, state.date, modules, state.elapsedSeconds);
+        Async.run("回传做题记录", () -> {
+            client.wake(json.toString());
+            return null;
+        }, value -> {
+        }, error -> {
+        });
     }
 
     private static String letter(String choice) {

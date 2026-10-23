@@ -1,5 +1,7 @@
 package com.fenbi.plugin.service;
 
+import com.fenbi.plugin.model.Models.Plan;
+import com.fenbi.plugin.model.Models.PlanItem;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -53,6 +55,32 @@ public final class History {
         public int correct;
         public int elapsedSeconds;
         public List<Item> items = new ArrayList<>();
+    }
+
+    /**
+     * 计划刚拉下来时先建一条「待开始」记录，历史页立刻能看到。
+     */
+    public synchronized void recordPlan(Plan plan) {
+        if (plan == null || plan.items() == null || plan.items().isEmpty()) return;
+        load();
+        Record record = new Record();
+        record.planId = plan.planId();
+        record.date = plan.date();
+        record.status = "pending";
+        record.updatedAt = LocalDateTime.now().format(TIME_FMT);
+        for (PlanItem item : plan.items()) {
+            Item entry = new Item();
+            entry.type = item.type();
+            entry.count = item.count();
+            record.items.add(entry);
+            record.totalQuestions += Math.max(0, item.count());
+        }
+        records.removeIf(existing -> existing.planId.equals(record.planId));
+        records.add(0, record);
+        while (records.size() > MAX_RECORDS) {
+            records.remove(records.size() - 1);
+        }
+        save();
     }
 
     /**

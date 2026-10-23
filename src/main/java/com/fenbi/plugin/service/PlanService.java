@@ -259,6 +259,7 @@ public class PlanService {
             props.setValue(KEY_LAST_ID, plan.planId());
             props.setValue(KEY_LAST_DATE, LocalDate.now().toString());
             PlanStore.getInstance().markFetched(plan);
+            History.getInstance().recordPlan(plan);
             lastError = "";
             notifyPlan(plan, !autoStart);
             if (autoStart) {

@@ -45,6 +45,9 @@ public class HistoryPanel extends JPanel implements Disposable {
         History history = History.getInstance();
         List<History.Record> records = new ArrayList<>(history.all());
         History.Record active = history.preview(PlanStore.getInstance().unfinishedToday());
+        if (active != null) {
+            records.removeIf(record -> record.planId.equals(active.planId));
+        }
 
         StringBuilder body = new StringBuilder(style());
         if (active == null && records.isEmpty()) {
@@ -84,6 +87,10 @@ public class HistoryPanel extends JPanel implements Disposable {
             statusText = "进行中";
             statusClass = "run";
             barColor = "var(--accent)";
+        } else if ("pending".equals(mode) || "pending".equals(record.status)) {
+            statusText = "待开始";
+            statusClass = "warn";
+            barColor = "#d6ae58";
         } else {
             statusText = "已中断";
             statusClass = "warn";

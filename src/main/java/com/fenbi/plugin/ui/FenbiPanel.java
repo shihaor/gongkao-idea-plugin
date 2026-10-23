@@ -12,6 +12,7 @@ import com.fenbi.plugin.service.OpenClawClient;
 import com.fenbi.plugin.service.PlanService;
 import com.fenbi.plugin.service.PlanSession;
 import com.fenbi.plugin.service.PlanStore;
+import com.fenbi.plugin.service.PracticeResult;
 import com.fenbi.plugin.service.Stats;
 import com.fenbi.plugin.service.WrongBook;
 import com.fenbi.plugin.util.Async;
@@ -32,12 +33,15 @@ import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
+import com.google.gson.JsonObject;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionListener;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 public class FenbiPanel extends JPanel implements Disposable {
@@ -366,6 +370,7 @@ public class FenbiPanel extends JPanel implements Disposable {
         } else {
             WrongBook.getInstance().record(set, solutions, answers, lastTitle, "", lastKeypointId, "手动");
             Stats.getInstance().record(set, solutions, answers, lastTitle, elapsedSeconds);
+            sendManualResult(set, solutions, answers, elapsedSeconds);
         }
         reviewPanel.show(set, solutions, answers, elapsedSeconds, retryText, retry, this::showBank);
         cardLayout.show(deck, CARD_REVIEW);
@@ -375,6 +380,20 @@ public class FenbiPanel extends JPanel implements Disposable {
     }
 
     // ------------------------------------------------------------------ 计划模式
+
+    private void sendManualResult(QuestionSet set, SolutionSet solutions,
+                                  Map<Long, Integer> answers, int seconds) {
+        if (!openClaw.isHookConfigured()) return;
+        String planId = "manual-" + LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm"));
+        JsonObject json = PracticeResult.buildManual(lastTitle, planId, set, solutions, answers, seconds);
+        Async.run("回传做题记录", () -> {
+            openClaw.wake(json.toString());
+            return null;
+        }, value -> {
+        }, error -> {
+        });
+    }
 
     public void startPlan(Plan plan) {
         if (plan == null || plan.items().isEmpty()) return;
