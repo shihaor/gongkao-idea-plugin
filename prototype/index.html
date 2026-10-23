@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>粉笔刷题 · IDEA 插件界面原型</title>
+<style>
+  :root{
+    --bg:#1e1f22; --panel:#2b2d30; --panel2:#313338; --panel3:#393b40;
+    --border:#3a3d43; --border2:#4b4f57;
+    --text:#dfe1e5; --dim:#9da0a8; --mute:#71757c;
+    --accent:#3574f0; --accent-soft:rgba(53,116,240,.16); --accent-hi:#4a80f5;
+    --green:#5fa25f; --green-soft:rgba(95,162,95,.15);
+    --red:#d05c5c; --red-soft:rgba(208,92,92,.15);
+    --yellow:#d6ae58; --purple:#b07bd0; --cyan:#4aa8a1;
+    --shadow:0 18px 50px rgba(0,0,0,.45);
+    --radius:8px;
+    --mono:"JetBrains Mono","Cascadia Code",Consolas,"Courier New",monospace;
+  }
+  body.light{
+    --bg:#ffffff; --panel:#f7f8fa; --panel2:#eef1f5; --panel3:#e2e6ec;
+    --border:#d6dae0; --border2:#c3c9d1;
+    --text:#1f2328; --dim:#5d6470; --mute:#8b929c;
+    --accent:#2f6be0; --accent-soft:rgba(47,107,224,.12); --accent-hi:#2a5fc8;
+    --green:#3e8a46; --green-soft:rgba(62,138,70,.12);
+    --red:#c0392b; --red-soft:rgba(192,57,43,.10);
+    --yellow:#a4772a; --purple:#8a5bb5; --cyan:#2c7f79;
+    --shadow:0 18px 50px rgba(20,30,50,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 700px at 20% -10%, #2a3350 0%, #17181c 55%, #101114 100%);
+    color:var(--text);
+    font-family:"Microsoft YaHei UI","Segoe UI",system-ui,-apple-system,sans-serif;
+    font-size:13px; line-height:1.6;
+    min-height:100vh; padding:22px 22px 40px;
+  }
+  body.light{
+    background:radial-gradient(1200px 700px at 20% -10%, #e8eefc 0%, #f2f4f8 55%, #e9ecf1 100%);
+  }
+  /* ---------- stage ---------- */
+  .stage{max-width:1400px;margin:0 auto}
+  .stage-head{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    margin-bottom:14px;color:#c9cdd6;
+  }
+  body.light .stage-head{color:#3b4250}
+  .stage-title{font-size:15px;font-weight:600;letter-spacing:.3px}
+  .stage-title span{color:var(--accent);font-weight:700}
+  .stage-tip{font-size:12px;color:#8b91a0}
+  body.light .stage-tip{color:#6a7280}
+  .stage-actions{margin-left:auto;display:flex;gap:8px}
+  .sbtn{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    color:#d6dae2;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;
+    transition:.15s;font-family:inherit;
+  }
+  .sbtn:hover{background:rgba(255,255,255,.12)}
+  body.light .sbtn{background:#fff;border-color:#cfd5df;color:#334}
+  body.light .sbtn:hover{background:#f3f6fb}
+
+  /* ---------- ide frame ---------- */
+  .ide{
+    width:100%;height:min(830px,86vh);min-height:640px;
+    background:var(--panel);border:1px solid var(--border2);border-radius:10px;
+    overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow);
+    position:relative;
+  }
+  .titlebar{
+    height:34px;flex:0 0 34px;display:flex;align-items:center;gap:10px;
+    padding:0 10px;background:var(--panel);border-bottom:1px solid var(--border);
+    font-size:12px;color:var(--dim);user-select:none;
+  }
+  .tb-logo{
+    width:18px;height:18px;border-radius:4px;display:grid;place-items:center;
+    background:linear-gradient(140deg,#4a80f5,#7b4af0);color:#fff;font-size:9px;font-weight:700;
+  }
+  .tb-right{margin-left:auto;display:flex;gap:16px;font-size:11px;color:var(--mute)}
+  .ide-body{flex:1;display:flex;min-height:0}
+
+  /* ---------- project sidebar ---------- */
+  .sidebar{
+    width:220px;flex:0 0 220px;background:var(--panel);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .side-tools{
+    height:32px;display:flex;align-items:center;gap:2px;padding:0 8px;
+    border-bottom:1px solid var(--border);color:var(--mute);font-size:11px;
+  }
+  .side-tools .st{margin-left:auto;display:flex;gap:8px}
+  .tree{padding:8px 0;font-size:12.5px;color:var(--dim);overflow:auto}
+  .tr{display:flex;align-items:center;gap:6px;height:24px;padding:0 10px;white-space:nowrap;cursor:default}
+  .tr:hover{background:var(--panel3)}
+  .tr.sel{background:var(--accent-soft);color:var(--text)}
+  .tr .ind{display:inline-block;width:0}
+  .ic{width:14px;text-align:center;font-size:11px;opacity:.9}
+  .ic.f{color:#c0954f}
+  .ic.j{color:#d0a35a}
+  .ic.p{color:#7fa6e0}
+  .ic.k{color:#8fbf8a}
+  .ic.m{color:#9da0a8}
+
+  /* ---------- editor ---------- */
+  .editor{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+  .etabs{height:32px;display:flex;align-items:stretch;background:var(--panel);border-bottom:1px solid var(--border);font-size:12px}
+  .etab{display:flex;align-items:center;gap:7px;padding:0 14px;color:var(--dim);border-right:1px solid var(--border);cursor:default}
+  .etab.active{background:var(--bg);color:var(--text);box-shadow:inset 0 2px 0 var(--accent)}
+  .etab .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .code{
+    flex:1;overflow:auto;padding:12px 0 20px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.75;color:#b9bec7;
+  }
+  body.light .code{color:#3b4250}
+  .ln{display:flex;padding:0 16px}
+  .ln .no{width:34px;flex:0 0 34px;text-align:right;color:#5c616b;user-select:none;padding-right:16px}
+  .k{color:#cf8e6d}.s{color:#6aab73}.c{color:#7a7f87}.a{color:#c77dbb}.n{color:#2aacb8}.ty{color:#b5bdc9}
+  body.light .k{color:#a03e00}body.light .s{color:#067d17}body.light .c{color:#8c8c8c}
+  body.light .a{color:#871094}body.light .n{color:#1750eb}body.light .ty{color:#1f2328}
+
+  /* ---------- tool window ---------- */
+  .tw{
+    width:520px;flex:0 0 520px;background:var(--panel);
+    border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0;
+  }
+  .tw-head{
+    height:36px;flex:0 0 36px;display:flex;align-items:center;gap:8px;
+    padding:0 8px 0 12px;border-bottom:1px solid var(--border);
+  }
+  .tw-title{font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px}
+  .fb-mark{
+    width:16px;height:16px;border-radius:4px;display:grid;place-items:center;
+    font-size:10px;font-weight:800;color:#fff;background:linear-gradient(140deg,#5b8df5,#2f6be0);
+  }
+  .tw-acts{margin-left:auto;display:flex;align-items:center;gap:2px}
+  .ico-btn{
+    width:26px;height:26px;border:0;border-radius:5px;background:transparent;color:var(--dim);
+    display:grid;place-items:center;cursor:pointer;font-size:13px;transition:.12s;
+  }
+  .ico-btn:hover{background:var(--panel3);color:var(--text)}
+  .tw-tabs{display:flex;height:34px;flex:0 0 34px;border-bottom:1px solid var(--border);padding:0 6px;gap:2px}
+  .tw-tab{
+    border:0;background:transparent;color:var(--dim);font-size:12px;padding:0 11px;cursor:pointer;
+    position:relative;font-family:inherit;border-radius:5px 5px 0 0;
+  }
+  .tw-tab:hover{color:var(--text);background:var(--panel3)}
+  .tw-tab.active{color:var(--text);font-weight:600}
+  .tw-tab.active::after{
+    content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:var(--accent);border-radius:2px 2px 0 0;
+  }
+  .tw-tab .cnt{
+    font-size:10px;background:var(--panel3);color:var(--dim);border-radius:8px;padding:0 5px;margin-left:4px;
+  }
+  .tw-body{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+  .tw-foot{
+    height:26px;flex:0 0 26px;border-top:1px solid var(--border);display:flex;align-items:center;
+    gap:8px;padding:0 10px;font-size:11px;color:var(--mute);background:var(--panel);
+  }
+  .tw-foot .live{color:var(--green)}
+  .tw-stripe{
+    width:28px;flex:0 0 28px;background:var(--panel);border-left:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .tw-stripe span{writing-mode:vertical-rl;font-size:11px;color:var(--mute);letter-spacing:2px}
+
+  /* ---------- views ---------- */
+  .view{display:none;flex:1;min-height:0;flex-direction:column}
+  .view.active{display:flex}
+
+  /* bank */
+  .bank-top{padding:10px 12px 8px;display:flex;gap:8px;align-items:center}
+  .seg{display:flex;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px}
+  .seg button{
+    border:0;background:transparent;color:var(--dim);font-size:11.5px;padding:4px 12px;border-radius:4px;
+    cursor:pointer;font-family:inherit;transition:.12s;
+  }
+  .seg button.active{background:var(--panel3);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .search{
+    flex:1;height:26px;background:var(--bg);border:1px solid var(--border);border-radius:6px;
+    color:var(--text);padding:0 9px;font-size:12px;outline:none;font-family:inherit;
+  }
+  .search:focus{border-color:var(--accent)}
+  .search::placeholder{color:var(--mute)}
+  .bank-scroll{flex:1;overflow:auto;padding:2px 8px 10px}
+  .group-label{
+    font-size:11px;color:var(--mute);letter-spacing:.6px;padding:9px 6px 5px;display:flex;align-items:center;gap:7px;
+  }
+  .group-label::after{content:"";flex:1;height:1px;background:var(--border)}
+  .cat{
+    display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:7px;cursor:pointer;
+    border:1px solid transparent;transition:.13s;
+  }
+  .cat:hover{background:var(--panel3);border-color:var(--border)}
+  .cat-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;background:var(--c,var(--accent));box-shadow:0 0 0 3px color-mix(in srgb,var(--c,var(--accent)) 18%,transparent)}
+  .cat-main{min-width:0;flex:1}
+  .cat-name{font-size:12.5px;color:var(--text)}
+  .cat-sub{font-size:11px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cat-count{font-size:11px;color:var(--mute);font-family:var(--mono)}
+  .chev{color:var(--mute);font-size:15px;line-height:1}
+  .resume{
+    margin:8px 12px 12px;padding:9px 11px;border-radius:8px;border:1px solid var(--border);
+    background:linear-gradient(180deg,var(--accent-soft),transparent);display:flex;align-items:center;gap:10px;
+  }
+  .resume .rm{flex:1;min-width:0}
+  .resume .rt{font-size:11px;color:var(--dim)}
+  .resume .rn{font-size:12.5px;color:var(--text)}
+  .bar{height:4px;border-radius:4px;background:var(--panel3);overflow:hidden;margin-top:6px}
+  .bar > i{display:block;height:100%;background:var(--accent);border-radius:4px}
+
+  /* quiz */
+  .quiz-top{
+    padding:9px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;flex:0 0 auto;
+  }
+  .back{
+    border:0;background:transparent;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;
+    padding:2px 4px;border-radius:4px;font-family:inherit;
+  }
+  .back:hover{background:var(--panel3);color:var(--text)}
+  .quiz-title{font-size:12.5px;font-weight:600}
+  .quiz-meta{font-size:11px;color:var(--mute);font-family:var(--mono)}
+  .quiz-top .sp{margin-left:auto}
+  .timer{font-family:var(--mono);font-size:11.5px;color:var(--dim);background:var(--panel2);border:1px solid var(--border);padding:2px 7px;border-radius:5px}
+  .prog{height:3px;background:var(--panel3);flex:0 0 3px}
+  .prog > i{display:block;height:100%;background:var(--accent);transition:width .25s}
+  .quiz-scroll{flex:1;overflow:auto;padding:14px 16px 8px}
+  .q-head{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .badge{
+    font-size:10.5px;padding:1px 7px;border-radius:4px;border:1px solid var(--border2);color:var(--dim);line-height:1.7;
+  }
+  .badge.blue{color:#7fa6f0;border-color:rgba(53,116,240,.5);background:rgba(53,116,240,.13)}
+  .badge.gray{color:var(--dim)}
+  .badge.green{color:#7fc083;border-color:rgba(95,162,95,.45);background:var(--green-soft)}
+  .q-idx{font-family:var(--mono);font-size:11px;color:var(--mute);margin-left:auto}
+  .stem{font-size:13.5px;line-height:1.85;color:var(--text)}
+  .stem p{margin:0 0 9px}
+  .material{
+    background:var(--panel2);border:1px solid var(--border);border-left:2px solid var(--border2);
+    border-radius:0 7px 7px 0;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--dim);line-height:1.8;
+  }
+  .material b{color:var(--text);font-weight:600}
+  .opts{display:flex;flex-direction:column;gap:8px;margin-top:13px}
+  .opt{
+    display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;
+    background:var(--panel2);border:1px solid var(--border);border-radius:7px;
+    padding:9px 11px;color:var(--text);font-size:12.8px;line-height:1.65;cursor:pointer;
+    transition:.13s;font-family:inherit;
+  }
+  .opt:hover:not(.locked){border-color:var(--border2);background:var(--panel3)}
+  .opt-key{
+    width:19px;height:19px;flex:0 0 19px;border-radius:50%;border:1px solid var(--border2);
+    display:grid;place-items:center;font-size:10.5px;color:var(--dim);font-family:var(--mono);margin-top:1px;
+  }
+  .opt-text{flex:1}
+  .opt-mark{font-size:12px;font-weight:700;opacity:0}
+  .opt.correct{border-color:rgba(95,162,95,.65);background:var(--green-soft)}
+  .opt.correct .opt-key{background:var(--green);border-color:var(--green);color:#fff}
+  .opt.correct .opt-mark{opacity:1;color:#7fc083}
+  .opt.wrong{border-color:rgba(208,92,92,.6);background:var(--red-soft)}
+  .opt.wrong .opt-key{background:var(--red);border-color:var(--red);color:#fff}
+  .opt.wrong .opt-mark{opacity:1;color:#e08585}
+  .opt.locked{cursor:default}
+  .opt.dim{opacity:.55}
+  .analysis{
+    margin-top:13px;border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+    overflow:hidden;display:none;
+  }
+  .analysis.show{display:block;animation:slide .22s ease}
+  @keyframes slide{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .an-head{
+    display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--border);
+    font-size:12px;color:var(--dim);background:linear-gradient(180deg,rgba(255,255,255,.03),transparent);
+  }
+  .an-head b{color:var(--text);font-family:var(--mono)}
+  .res-tag{font-size:11px;padding:1px 8px;border-radius:10px;font-weight:600}
+  .res-tag.ok{color:#8fce93;background:var(--green-soft);border:1px solid rgba(95,162,95,.45)}
+  .res-tag.no{color:#e08d8d;background:var(--red-soft);border:1px solid rgba(208,92,92,.45)}
+  .an-body{padding:9px 11px 10px;font-size:12.3px;color:var(--dim);line-height:1.8}
+  .an-label{font-size:11px;color:var(--mute);margin-bottom:4px;letter-spacing:.4px}
+  .an-body b{color:var(--text)}
+  .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .tag{font-size:10.5px;color:var(--dim);background:var(--panel3);border-radius:4px;padding:1px 7px}
+  .quiz-actions{
+    flex:0 0 auto;border-top:1px solid var(--border);padding:9px 12px;display:flex;gap:8px;align-items:center;
+    background:var(--panel);
+  }
+  .btn{
+    border:1px solid var(--border2);background:var(--panel2);color:var(--text);
+    border-radius:6px;padding:6px 13px;font-size:12px;cursor:pointer;font-family:inherit;transition:.13s;
+  }
+  .btn:hover{background:var(--panel3)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-hi)}
+  .btn.primary:disabled{opacity:.45;cursor:not-allowed;background:var(--accent)}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:3px 9px;font-size:11px}
+  .quiz-actions .sp{margin-left:auto}
+
+  /* essay */
+  .essay-scroll{flex:1;overflow:auto;padding:12px 14px}
+  .paper-head{margin-bottom:10px}
+  .paper-title{font-size:13px;font-weight:600}
+  .paper-sub{font-size:11px;color:var(--mute);margin-top:2px}
+  .mat-block{
+    border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:11px 12px;margin-bottom:10px;
+    font-size:12.4px;color:var(--dim);line-height:1.85;
+  }
+  .mat-block h4{margin:0 0 6px;font-size:11.5px;color:var(--mute);font-weight:600;letter-spacing:.4px}
+  .mat-block p{margin:0 0 7px}
+  .mat-block p:last-child{margin:0}
+  .prompt{
+    border:1px solid rgba(53,116,240,.35);background:var(--accent-soft);border-radius:8px;
+    padding:10px 12px;font-size:12.5px;color:var(--text);line-height:1.8;margin-bottom:10px;
+  }
+  .prompt .plabel{font-size:10.5px;color:#7fa6f0;letter-spacing:.5px;margin-bottom:3px}
+  .answer-box{
+    width:100%;min-height:110px;resize:vertical;background:var(--bg);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);padding:10px 11px;font-size:12.5px;line-height:1.8;
+    font-family:inherit;outline:none;
+  }
+  .answer-box:focus{border-color:var(--accent)}
+  .answer-meta{display:flex;align-items:center;gap:8px;margin:6px 0 10px;font-size:11px;color:var(--mute)}
+  .answer-meta .sp{margin-left:auto}
+  .ref{
+    border:1px solid rgba(95,162,95,.4);background:var(--green-soft);border-radius:8px;padding:11px 12px;
+    margin-top:10px;display:none;
+  }
+  .ref.show{display:block;animation:slide .2s ease}
+  .ref h4{margin:0 0 7px;font-size:11.5px;color:#8fce93;letter-spacing:.4px}
+  .ref ol{margin:0;padding-left:17px;color:var(--dim);font-size:12.3px;line-height:1.9}
+  .ref li{margin-bottom:4px}
+  .ref li b{color:var(--text);font-weight:600}
+
+  /* stats */
+  .stats-scroll{flex:1;overflow:auto;padding:14px}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .kpi{border:1px solid var(--border);background:var(--panel2);border-radius:8px;padding:10px}
+  .kpi .v{font-size:19px;font-weight:700;font-family:var(--mono);letter-spacing:-.5px}
+  .kpi .l{font-size:10.5px;color:var(--mute);margin-top:2px}
+  .kpi .v.g{color:#7fc083}.kpi .v.b{color:#7fa6f0}
+  .chart{display:flex;align-items:flex-end;gap:7px;height:110px;padding:10px 4px 0;border-bottom:1px solid var(--border)}
+  .chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;height:100%}
+  .chart .col i{display:block;background:linear-gradient(180deg,var(--accent),rgba(53,116,240,.35));border-radius:3px 3px 0 0;min-height:3px}
+  .chart .col i.g{background:linear-gradient(180deg,var(--green),rgba(95,162,95,.35))}
+  .axis{display:flex;gap:7px;margin-top:6px}
+  .axis span{flex:1;text-align:center;font-size:10px;color:var(--mute)}
+  .list-title{font-size:11px;color:var(--mute);margin:16px 0 7px;letter-spacing:.5px}
+  .wrong-item{
+    display:flex;gap:9px;align-items:flex-start;padding:9px 10px;border:1px solid var(--border);
+    border-radius:7px;background:var(--panel2);margin-bottom:7px;
+  }
+  .wrong-item .wi-main{flex:1;min-width:0}
+  .wrong-item .wi-q{font-size:12.2px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wrong-item .wi-s{font-size:10.5px;color:var(--mute);margin-top:2px}
+
+  /* settings */
+  .set-scroll{flex:1;overflow:auto;padding:6px 14px 16px}
+  .set-group{font-size:11px;color:var(--mute);letter-spacing:.5px;margin:14px 0 6px}
+  .set-row{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);
+    border-radius:7px;background:var(--panel2);margin-bottom:6px;
+  }
+  .set-row .sl{flex:1;min-width:0}
+  .set-row .sl .t{font-size:12.3px}
+  .set-row .sl .d{font-size:10.8px;color:var(--mute);margin-top:1px}
+  .chips{display:flex;gap:5px}
+  .chip{
+    border:1px solid var(--border2);background:transparent;color:var(--dim);border-radius:5px;
+    padding:3px 9px;font-size:11px;cursor:pointer;font-family:var(--mono);transition:.12s;
+  }
+  .chip:hover{border-color:var(--accent)}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .switch{width:32px;height:18px;border-radius:9px;background:var(--panel3);border:1px solid var(--border2);position:relative;cursor:pointer;flex:0 0 32px;transition:.15s}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dim);transition:.15s}
+  .switch.on{background:var(--accent);border-color:var(--accent)}
+  .switch.on::after{left:16px;background:#fff}
+  .cookie-val{
+    font-family:var(--mono);font-size:11px;color:var(--mute);background:var(--bg);border:1px solid var(--border);
+    border-radius:5px;padding:3px 8px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .kbd{
+    font-family:var(--mono);font-size:10.5px;border:1px solid var(--border2);border-bottom-width:2px;
+    border-radius:4px;padding:1px 6px;color:var(--dim);background:var(--bg);
+  }
+
+  /* empty / result */
+  .center-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px}
+  .big-mark{
+    width:58px;height:58px;border-radius:14px;display:grid;place-items:center;font-size:24px;font-weight:800;color:#fff;
+    background:linear-gradient(140deg,#5b8df5,#2f6be0);box-shadow:0 10px 28px rgba(53,116,240,.35);margin-bottom:8px;
+  }
+  .center-wrap h3{margin:0;font-size:14px}
+  .center-wrap p{margin:0 0 10px;font-size:12px;color:var(--mute);line-height:1.7;max-width:320px}
+  .result-card{
+    margin:18px 16px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);
+    padding:18px 16px;text-align:center;
+  }
+  .score{font-size:34px;font-weight:800;font-family:var(--mono);letter-spacing:-1px;color:var(--accent)}
+  .score small{font-size:13px;color:var(--mute);font-weight:400}
+  .result-sub{font-size:12px;color:var(--dim);margin-top:4px}
+  .rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 4px}
+  .rgrid .ri{border:1px solid var(--border);border-radius:7px;padding:8px 6px;background:var(--bg)}
+  .rgrid .rv{font-family:var(--mono);font-size:15px;font-weight:700}
+  .rgrid .rl{font-size:10.5px;color:var(--mute);margin-top:1px}
+
+  /* status bar */
+  .statusbar{
+    height:24px;flex:0 0 24px;display:flex;align-items:center;gap:14px;padding:0 10px;
+    background:var(--panel2);border-top:1px solid var(--border);font-size:11px;color:var(--mute);
+  }
+  .statusbar .ri{margin-left:auto;display:flex;gap:14px}
+  .statusbar .ok{color:var(--green)}
+
+  /* ---------- login modal ---------- */
+  .backdrop{
+    position:fixed;inset:0;background:rgba(8,10,14,.62);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:50;
+  }
+  .backdrop.show{display:flex;animation:fade .18s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{
+    width:720px;max-width:94vw;background:var(--panel);border:1px solid var(--border2);border-radius:10px;
+    box-shadow:0 30px 80px rgba(0,0,0,.55);overflow:hidden;
+  }
+  .modal-head{
+    height:40px;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--border);
+    font-size:12.5px;font-weight:600;
+  }
+  .modal-head .x{
+    margin-left:auto;border:0;background:transparent;color:var(--mute);font-size:15px;cursor:pointer;
+    width:24px;height:24px;border-radius:4px;font-family:inherit;
+  }
+  .modal-head .x:hover{background:var(--panel3);color:var(--text)}
+  .modal-body{display:flex}
+  .login-left{width:340px;flex:0 0 340px;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column}
+  .addr{
+    height:30px;display:flex;align-items:center;gap:7px;padding:0 11px;border-bottom:1px solid var(--border);
+    font-size:11px;color:var(--mute);font-family:var(--mono);
+  }
+  .addr .lock{color:var(--green);font-size:10px}
+  .qr-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px;gap:10px}
+  .qr-frame{
+    background:#fff;border-radius:10px;padding:10px;box-shadow:0 6px 20px rgba(0,0,0,.35);position:relative;
+  }
+  .qr{display:grid;grid-template-columns:repeat(25,1fr);gap:0;width:170px;height:170px}
+  .qr i{display:block;width:100%;height:100%}
+  .qr i.on{background:#111}
+  .qr-logo{
+    position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
+  }
+  .qr-logo span{
+    width:34px;height:34px;border-radius:7px;background:#fff;display:grid;place-items:center;
+    font-size:12px;font-weight:800;color:#2f6be0;box-shadow:0 0 0 4px #fff;
+  }
+  .qr-cap{font-size:11.5px;color:var(--dim)}
+  .qr-cap b{color:var(--text)}
+  .login-right{flex:1;padding:16px 18px}
+  .lr-title{font-size:12.5px;font-weight:600;margin-bottom:8px}
+  .lr-list{margin:0 0 12px;padding-left:16px;font-size:11.8px;color:var(--dim);line-height:1.9}
+  .lr-list li::marker{color:var(--accent)}
+  .hint{
+    font-size:11px;color:var(--mute);background:var(--panel2);border:1px solid var(--border);
+    border-radius:6px;padding:8px 9px;line-height:1.7;
+  }
+  .hint b{color:var(--dim)}
+  .alt{margin-top:12px;font-size:11.5px;color:var(--mute)}
+  .alt a{color:#7fa6f0;text-decoration:none;cursor:pointer}
+  .alt a:hover{text-decoration:underline}
+  .modal-foot{
+    border-top:1px solid var(--border);padding:9px 14px;display:flex;align-items:center;gap:9px;
+    font-size:11px;color:var(--mute);background:var(--panel2);
+  }
+  .modal-foot .sp{margin-left:auto}
+
+  /* scrollbars */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#4a4d52;border-radius:5px;border:2px solid transparent;background-clip:padding-box}
+  body.light ::-webkit-scrollbar-thumb{background:#c6ccd6;background-clip:padding-box}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  @media (max-width:1100px){
+    .sidebar{display:none}
+    .tw{width:100%;flex:1}
+    .tw-stripe{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="stage-head">
+    <div class="stage-title">粉笔刷题 · <span>IDEA 插件</span> 界面原型</div>
+    <div class="stage-tip">可点击：题库分类 → 做题 → 选项判题 → 交卷；右上角可体验扫码登录</div>
+    <div class="stage-actions">
+      <button class="sbtn" onclick="openLogin()">▶ 演示扫码登录</button>
+      <button class="sbtn" onclick="toggleTheme()">切换浅色</button>
+      <button class="sbtn" onclick="resetDemo()">重置演示</button>
+    </div>
+  </div>
+
+  <div class="ide">
+    <!-- title bar -->
+    <div class="titlebar">
+      <div class="tb-logo">IJ</div>
+      <span>spring-boot-demo – OrderService.java</span>
+      <div class="tb-right"><span>—</span><span>▢</span><span>✕</span></div>
+    </div>
+
+    <div class="ide-body">
+      <!-- project tree -->
+      <div class="sidebar">
+        <div class="side-tools"><span>项目</span><span class="st">⌄ ＋</span></div>
+        <div class="tree">
+          <div class="tr"><span class="ic">⌄</span>spring-boot-demo</div>
+          <div class="tr" style="padding-left:22px"><span class="ic">⌄</span><span class="ic p">▸</span>src</div>
+          <div class="tr" style="padding-left:38px"><span class="ic">⌄</span><span class="ic p">▸</span>main</div>
+          <div class="tr" style="padding-left:54px"><span class="ic">⌄</span><span class="ic p">▸</span>java</div>
+          <div class="tr" style="padding-left:70px"><span class="ic">⌄</span>com.example.order</div>
+          <div class="tr sel" style="padding-left:86px"><span class="ic j">◈</span>OrderService.java</div>
+          <div class="tr" style="padding-left:86px"><span class="ic j">◈</span>OrderController.java</div>
+          <div class="tr" style="padding-left:86px"><span class="ic k">◈</span>OrderRepository.java</div>
+          <div class="tr" style="padding-left:70px"><span class="ic m">▸</span>resources</div>
+          <div class="tr" style="padding-left:38px"><span class="ic m">▸</span>test</div>
+          <div class="tr"><span class="ic f">▸</span>build.gradle.kts</div>
+          <div class="tr"><span class="ic m">▸</span>settings.gradle.kts</div>
+        </div>
+      </div>
+
+      <!-- editor -->
+      <div class="editor">
+        <div class="etabs">
+          <div class="etab active"><span class="dot"></span>OrderService.java</div>
+          <div class="etab">application.yml</div>
+        </div>
+        <div class="code">
+          <div class="ln"><span class="no">1</span><span><span class="k">package</span> com.example.order;</span></div>
+          <div class="ln"><span class="no">2</span><span></span></div>
+          <div class="ln"><span class="no">3</span><span><span class="k">import</span> org.springframework.stereotype.Service;</span></div>
+          <div class="ln"><span class="no">4</span><span><span class="k">import</span> java.util.List;</span></div>
+          <div class="ln"><span class="no">5</span><span></span></div>
+          <div class="ln"><span class="no">6</span><span><span class="a">@Service</span></span></div>
+          <div class="ln"><span class="no">7</span><span><span class="k">public class</span> <span class="ty">OrderService</span> {</span></div>
+          <div class="ln"><span class="no">8</span><span></span></div>
+          <div class="ln"><span class="no">9</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">private final</span> <span class="ty">OrderRepository</span> repository;</span></div>
+          <div class="ln"><span class="no">10</span><span></span></div>
+          <div class="ln"><span class="no">11</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">public</span> <span class="ty">OrderService</span>(<span class="ty">OrderRepository</span> repository) {</span></div>
+          <div class="ln"><span class="no">12</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">this</span>.repository = repository;</span></div>
+          <div class="ln"><span class="no">13</span><span>&nbsp;&nbsp;&nbsp;&nbsp;}</span></div>
+          <div class="ln"><span class="no">14</span><span></span></div>
+          <div class="ln"><span class="no">15</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">public</span> <span class="ty">Order</span> create(<span class="ty">CreateOrderCommand</span> command) {</span></div>
+          <div class="ln"><span class="no">16</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ty">Order</span> order = <span class="ty">Order</span>.from(command);</span></div>
+          <div class="ln"><span class="no">17</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;order.setStatus(<span class="ty">OrderStatus</span>.CREATED);</span></div>
+          <div class="ln"><span class="no">18</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">return</span> repository.save(order);</span></div>
+          <div class="ln"><span class="no">19</span><span>&nbsp;&nbsp;&nbsp;&nbsp;}</span></div>
+          <div class="ln"><span class="no">20</span><span></span></div>
+          <div class="ln"><span class="no">21</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">// TODO: 分页查询待补充</span></span></div>
+          <div class="ln"><span class="no">22</span><span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">public</span> <span class="ty">List</span>&lt;<span class="ty">Order</span>&gt; list() {</span></div>
+          <div class="ln"><span class="no">23</span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">return</span> repository.findAll();</span></div>
+          <div class="ln"><span class="no">24</span><span>&nbsp;&nbsp;&nbsp;&nbsp;}</span></div>
+          <div class="ln"><span class="no">25</span><span>}</span></div>
+          <div class="ln"><span class="no">26</span><span></span></div>
+        </div>
+      </div>
+
+      <!-- tool window -->
+      <div class="tw">
+        <div class="tw-head">
+          <div class="tw-title"><span class="fb-mark">粉</span>粉笔刷题</div>
+          <div class="tw-acts">
+            <button class="ico-btn" title="刷新" onclick="toast('已刷新题库')">⟳</button>
+            <button class="ico-btn" title="设置" onclick="switchTab('settings')">⚙</button>
+            <button class="ico-btn" title="收起 (Ctrl+Alt+F)" onclick="toast('Ctrl+Alt+F 可随时隐藏 / 呼出')">—</button>
+          </div>
+        </div>
+
+        <div class="tw-tabs">
+          <button class="tw-tab active" data-tab="bank" onclick="switchTab('bank')">题库</button>
+          <button class="tw-tab" data-tab="wrong" onclick="switchTab('wrong')">错题本<span class="cnt">6</span></button>
+          <button class="tw-tab" data-tab="stats" onclick="switchTab('stats')">统计</button>
+          <button class="tw-tab" data-tab="settings" onclick="switchTab('settings')">设置</button>
+        </div>
+
+        <div class="tw-body">
+
+          <!-- ===== 题库 ===== -->
+          <div class="view active" data-view="bank">
+            <div class="bank-top">
+              <div class="seg">
+                <button class="active" id="segX" onclick="switchBank('xingce')">行测</button>
+                <button id="segS" onclick="switchBank('shenlun')">申论</button>
+              </div>
+              <input class="search" placeholder="搜索考点，如：逻辑填空">
+            </div>
+
+            <div class="bank-scroll" id="xingceList">
+              <div class="group-label">行测 · 专项练习</div>
+              <div class="cat" onclick="startQuiz('言语理解与表达')">
+                <span class="cat-dot" style="--c:#c77dbb"></span>
+                <div class="cat-main">
+                  <div class="cat-name">言语理解与表达</div>
+                  <div class="cat-sub">逻辑填空 · 片段阅读 · 语句表达</div>
+                </div>
+                <span class="cat-count">1,842</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="startQuiz('判断推理')">
+                <span class="cat-dot" style="--c:#7fa6f0"></span>
+                <div class="cat-main">
+                  <div class="cat-name">判断推理</div>
+                  <div class="cat-sub">图形推理 · 定义判断 · 类比推理 · 逻辑判断</div>
+                </div>
+                <span class="cat-count">1,536</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="startQuiz('数量关系')">
+                <span class="cat-dot" style="--c:#d6ae58"></span>
+                <div class="cat-main">
+                  <div class="cat-name">数量关系</div>
+                  <div class="cat-sub">数学运算 · 数字推理</div>
+                </div>
+                <span class="cat-count">986</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="startQuiz('资料分析')">
+                <span class="cat-dot" style="--c:#5fa25f"></span>
+                <div class="cat-main">
+                  <div class="cat-name">资料分析</div>
+                  <div class="cat-sub">增长 · 比重 · 平均数 · 倍数</div>
+                </div>
+                <span class="cat-count">1,204</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="startQuiz('常识判断')">
+                <span class="cat-dot" style="--c:#4aa8a1"></span>
+                <div class="cat-main">
+                  <div class="cat-name">常识判断</div>
+                  <div class="cat-sub">政治 · 法律 · 科技 · 人文</div>
+                </div>
+                <span class="cat-count">2,310</span><span class="chev">›</span>
+              </div>
+
+              <div class="group-label">按考试</div>
+              <div class="cat" onclick="startQuiz('国考行测')">
+                <span class="cat-dot" style="--c:#b07bd0"></span>
+                <div class="cat-main">
+                  <div class="cat-name">国考行测 · 真题套卷</div>
+                  <div class="cat-sub">2018–2026 副省级 / 地市级</div>
+                </div>
+                <span class="cat-count">46 套</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="startQuiz('省考行测')">
+                <span class="cat-dot" style="--c:#d05c5c"></span>
+                <div class="cat-main">
+                  <div class="cat-name">省考行测 · 真题套卷</div>
+                  <div class="cat-sub">江苏 / 浙江 / 山东 / 广东…</div>
+                </div>
+                <span class="cat-count">128 套</span><span class="chev">›</span>
+              </div>
+            </div>
+
+            <div class="bank-scroll" id="shenlunList" style="display:none">
+              <div class="group-label">申论 · 真题试卷</div>
+              <div class="cat" onclick="openEssay()">
+                <span class="cat-dot" style="--c:#7fa6f0"></span>
+                <div class="cat-main">
+                  <div class="cat-name">2025 国考（副省级）</div>
+                  <div class="cat-sub">3 道题 · 已做 1 题</div>
+                </div>
+                <span class="cat-count">135 分</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="openEssay()">
+                <span class="cat-dot" style="--c:#b07bd0"></span>
+                <div class="cat-main">
+                  <div class="cat-name">2025 国考（地市级）</div>
+                  <div class="cat-sub">4 道题 · 未开始</div>
+                </div>
+                <span class="cat-count">130 分</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="openEssay()">
+                <span class="cat-dot" style="--c:#d6ae58"></span>
+                <div class="cat-main">
+                  <div class="cat-name">2025 江苏省考（A 类）</div>
+                  <div class="cat-sub">4 道题 · 未开始</div>
+                </div>
+                <span class="cat-count">150 分</span><span class="chev">›</span>
+              </div>
+              <div class="cat" onclick="openEssay()">
+                <span class="cat-dot" style="--c:#5fa25f"></span>
+                <div class="cat-main">
+                  <div class="cat-name">2024 山东省考（B 类）</div>
+                  <div class="cat-sub">4 道题 · 未开始</div>
+                </div>
+                <span class="cat-count">150 分</span><span class="chev">›</span>
+              </div>
+            </div>
+
+            <div class="resume">
+              <div class="rm">
+                <div class="rt">继续上次练习</div>
+                <div class="rn">数量关系 · 第 4 / 10 题</div>
+                <div class="bar"><i style="width:35%"></i></div>
+              </div>
+              <button class="btn primary sm" onclick="startQuiz('数量关系')">继续</button>
+            </div>
+          </div>
+
+          <!-- ===== 做题 ===== -->
+          <div class="view" data-view="quiz">
+            <div class="quiz-top">
+              <button class="back" onclick="switchTab('bank')">‹</button>
+              <div>
+                <div class="quiz-title" id="quizCat">数量关系</div>
+                <div class="quiz-meta" id="quizCount">第 1 / 3 题</div>
+              </div>
+              <div class="sp"></div>
+              <span class="timer" id="timer">02:14</span>
+              <button class="ico-btn" title="收藏">☆</button>
+            </div>
+            <div class="prog"><i id="progBar" style="width:33%"></i></div>
+            <div class="quiz-scroll" id="quizScroll"></div>
+            <div class="quiz-actions">
+              <button class="btn ghost" onclick="prevQ()">上一题</button>
+              <button class="btn" onclick="toast('已标记，交卷后可筛选')">标记</button>
+              <div class="sp"></div>
+              <button class="btn primary" id="nextBtn" disabled onclick="nextQ()">下一题</button>
+            </div>
+          </div>
+
+          <!-- ===== 交卷结果 ===== -->
+          <div class="view" data-view="result">
+            <div class="center-wrap" style="justify-content:flex-start;padding-top:22px">
+              <div class="result-card" style="width:100%;margin:0">
+                <div class="score" id="scoreNum">67<small>%</small></div>
+                <div class="result-sub">本组 3 题 · 用时 02:14 · 已同步到粉笔账号</div>
+                <div class="rgrid">
+                  <div class="ri"><div class="rv" style="color:#7fc083" id="okNum">2</div><div class="rl">答对</div></div>
+                  <div class="ri"><div class="rv" style="color:#e08585" id="noNum">1</div><div class="rl">答错</div></div>
+                  <div class="ri"><div class="rv" style="color:#7fa6f0">+3</div><div class="rl">连续天数</div></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:16px">
+                <button class="btn primary" onclick="startQuiz(currentCat)">再练一组</button>
+                <button class="btn" onclick="switchTab('bank')">返回题库</button>
+              </div>
+              <div style="font-size:11px;color:var(--mute);margin-top:14px">答错的题目已自动加入错题本</div>
+            </div>
+          </div>
+
+          <!-- ===== 申论 ===== -->
+          <div class="view" data-view="essay">
+            <div class="quiz-top">
+              <button class="back" onclick="switchTab('bank');switchBank('shenlun')">‹</button>
+              <div>
+                <div class="quiz-title">2025 国考（副省级）· 第三题</div>
+                <div class="quiz-meta">归纳概括 · 20 分</div>
+              </div>
+              <div class="sp"></div>
+              <span class="timer">12:40</span>
+            </div>
+            <div class="essay-scroll">
+              <div class="mat-block">
+                <h4>给定资料 2</h4>
+                <p>在浙江德清，一张“数字乡村一张图”把分散在 13 个部门的涉农数据归集到一起。哪块田该施肥、哪条河水质异常、哪位老人需要上门服务，都能在图上实时看到。</p>
+                <p>“过去判断涝情靠人跑，现在靠数据跑。”县农业农村局负责人说，平台接入了 2 300 多个物联网感知设备，汛期预警从原来的 3 小时缩短到 20 分钟，去年减少农业损失约 1 200 万元。</p>
+                <p>数据归集只是第一步。当地还把 47 项高频事项下沉到村，村民在“浙里办”上点一点，社保、医保、农补就能就近办。村干部的手机上多了一个“待办”列表，谁家的事办到哪一步，一目了然。</p>
+              </div>
+              <div class="prompt">
+                <div class="plabel">作答要求</div>
+                请根据“给定资料 2”，概括数字技术在基层治理中发挥的作用。（20 分）<br>
+                要求：全面、准确、有条理，不超过 300 字。
+              </div>
+              <textarea class="answer-box" id="essayInput" placeholder="在此作答…（Ctrl+Enter 保存草稿）" oninput="updateWordCount()"></textarea>
+              <div class="answer-meta">
+                <span id="wordCount">0 / 300 字</span>
+                <span>·</span>
+                <span>自动保存草稿</span>
+                <span class="sp"></span>
+                <button class="btn sm" onclick="toggleRef()">查看参考答案</button>
+              </div>
+              <div class="ref" id="refBox">
+                <h4>参考答案（要点）</h4>
+                <ol>
+                  <li><b>提升监测预警能力。</b>归集多部门涉农数据，接入物联感知设备，实现汛情等风险实时监测，缩短预警时间，减少损失。</li>
+                  <li><b>提高决策科学性。</b>以“一张图”可视化呈现田块、河道、人员等信息，为精准施策提供数据支撑。</li>
+                  <li><b>便利群众办事。</b>推动高频事项下沉到村，群众线上办理社保、医保、农补等业务，实现就近办、指尖办。</li>
+                  <li><b>提升基层工作效率。</b>任务办理进度线上留痕、实时可查，减少重复跑腿与层层上报。</li>
+                </ol>
+              </div>
+            </div>
+            <div class="quiz-actions">
+              <button class="btn ghost" onclick="switchTab('bank')">返回</button>
+              <div class="sp"></div>
+              <button class="btn" onclick="toast('草稿已保存到本地')">保存草稿</button>
+              <button class="btn primary" onclick="toggleRef()">对照答案</button>
+            </div>
+          </div>
+
+          <!-- ===== 错题本 ===== -->
+          <div class="view" data-view="wrong">
+            <div class="bank-top">
+              <div class="seg"><button class="active">全部 6</button><button>行测 6</button><button>申论 0</button></div>
+              <input class="search" placeholder="搜索题目">
+            </div>
+            <div class="bank-scroll">
+              <div class="wrong-item">
+                <span class="cat-dot" style="--c:#d05c5c;margin-top:6px"></span>
+                <div class="wi-main">
+                  <div class="wi-q">某单位共有职工 120 人，其中党员 45 人，女性 60 人…</div>
+                  <div class="wi-s">数量关系 · 容斥原理 · 答错 1 次</div>
+                </div>
+                <button class="btn sm" onclick="startQuiz('数量关系')">重做</button>
+              </div>
+              <div class="wrong-item">
+                <span class="cat-dot" style="--c:#7fa6f0;margin-top:6px"></span>
+                <div class="wi-main">
+                  <div class="wi-q">所有程序员都懂逻辑，小明懂逻辑。由此可以推出…</div>
+                  <div class="wi-s">判断推理 · 逻辑判断 · 答错 1 次</div>
+                </div>
+                <button class="btn sm" onclick="startQuiz('判断推理')">重做</button>
+              </div>
+              <div class="wrong-item">
+                <span class="cat-dot" style="--c:#c77dbb;margin-top:6px"></span>
+                <div class="wi-main">
+                  <div class="wi-q">在信息爆炸的时代，真正稀缺的不是信息，而是____信息的能力。</div>
+                  <div class="wi-s">言语理解 · 逻辑填空 · 答错 2 次</div>
+                </div>
+                <button class="btn sm" onclick="startQuiz('言语理解与表达')">重做</button>
+              </div>
+              <div class="wrong-item">
+                <span class="cat-dot" style="--c:#d6ae58;margin-top:6px"></span>
+                <div class="wi-main">
+                  <div class="wi-q">2024 年末某省常住人口城镇化率约为…（资料分析）</div>
+                  <div class="wi-s">资料分析 · 比重 · 答错 1 次</div>
+                </div>
+                <button class="btn sm" onclick="startQuiz('资料分析')">重做</button>
+              </div>
+              <div class="wrong-item">
+                <span class="cat-dot" style="--c:#4aa8a1;margin-top:6px"></span>
+                <div class="wi-main">
+                  <div class="wi-q">下列关于行政处罚简易程序的说法，正确的是…</div>
+                  <div class="wi-s">常识判断 · 法律 · 答错 1 次</div>
+                </div>
+                <button class="btn sm" onclick="startQuiz('常识判断')">重做</button>
+              </div>
+              <div class="wrong-item">
+                <span class="cat-dot" style="--c:#b07bd0;margin-top:6px"></span>
+                <div class="wi-main">
+                  <div class="wi-q">某商品先提价 20% 再降价 20%，最终价格与原价相比…</div>
+                  <div class="wi-s">数量关系 · 经济利润 · 答错 1 次</div>
+                </div>
+                <button class="btn sm" onclick="startQuiz('数量关系')">重做</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== 统计 ===== -->
+          <div class="view" data-view="stats">
+            <div class="stats-scroll">
+              <div class="kpis">
+                <div class="kpi"><div class="v b">42</div><div class="l">今日题量</div></div>
+                <div class="kpi"><div class="v g">76%</div><div class="l">今日正确率</div></div>
+                <div class="kpi"><div class="v">7</div><div class="l">连续天数</div></div>
+              </div>
+              <div class="list-title">近 7 天题量</div>
+              <div class="chart">
+                <div class="col"><i style="height:38%"></i></div>
+                <div class="col"><i style="height:62%"></i></div>
+                <div class="col"><i style="height:45%"></i></div>
+                <div class="col"><i style="height:80%"></i></div>
+                <div class="col"><i style="height:55%"></i></div>
+                <div class="col"><i class="g" style="height:92%"></i></div>
+                <div class="col"><i style="height:70%"></i></div>
+              </div>
+              <div class="axis"><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span></div>
+              <div class="list-title">分类正确率</div>
+              <div style="font-size:12px;color:var(--dim)">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+                  <span style="width:76px">资料分析</span><span class="bar" style="flex:1"><i style="width:84%;background:var(--green)"></i></span><span style="width:34px;text-align:right;font-family:var(--mono)">84%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+                  <span style="width:76px">判断推理</span><span class="bar" style="flex:1"><i style="width:78%;background:var(--green)"></i></span><span style="width:34px;text-align:right;font-family:var(--mono)">78%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+                  <span style="width:76px">言语理解</span><span class="bar" style="flex:1"><i style="width:72%"></i></span><span style="width:34px;text-align:right;font-family:var(--mono)">72%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="width:76px">数量关系</span><span class="bar" style="flex:1"><i style="width:58%;background:var(--yellow)"></i></span><span style="width:34px;text-align:right;font-family:var(--mono)">58%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== 设置 ===== -->
+          <div class="view" data-view="settings">
+            <div class="set-scroll">
+              <div class="set-group">练习</div>
+              <div class="set-row">
+                <div class="sl"><div class="t">每组题量</div><div class="d">组卷时请求的题目数量</div></div>
+                <div class="chips">
+                  <button class="chip" onclick="pickChip(this)">5</button>
+                  <button class="chip on" onclick="pickChip(this)">10</button>
+                  <button class="chip" onclick="pickChip(this)">15</button>
+                  <button class="chip" onclick="pickChip(this)">20</button>
+                </div>
+              </div>
+              <div class="set-row">
+                <div class="sl"><div class="t">默认题库</div><div class="d">组卷时使用的考试范围</div></div>
+                <button class="btn sm">国考 · 副省级 ⌄</button>
+              </div>
+              <div class="set-row">
+                <div class="sl"><div class="t">答对后自动下一题</div><div class="d">答错时停留查看解析</div></div>
+                <div class="switch" onclick="this.classList.toggle('on')"></div>
+              </div>
+
+              <div class="set-group">账号</div>
+              <div class="set-row">
+                <div class="sl">
+                  <div class="t">已登录 <span style="color:var(--green);font-size:11px">● 138****8888</span></div>
+                  <div class="d">登录态保存在 IDEA 密码库，加密存储</div>
+                </div>
+                <button class="btn sm" onclick="openLogin()">重新登录</button>
+              </div>
+              <div class="set-row">
+                <div class="sl"><div class="t">Cookie</div><div class="d">用于调用粉笔题库接口</div></div>
+                <div class="cookie-val">sess=f7a3…9c2e; userid=…; persistent=…</div>
+              </div>
+
+              <div class="set-group">外观与快捷键</div>
+              <div class="set-row">
+                <div class="sl"><div class="t">主题</div><div class="d">题目区域跟随 IDE 主题</div></div>
+                <button class="btn sm" onclick="toggleTheme()">跟随 IDE ⌄</button>
+              </div>
+              <div class="set-row">
+                <div class="sl"><div class="t">呼出 / 隐藏面板</div><div class="d">摸鱼模式：一键切回代码</div></div>
+                <span class="kbd">Ctrl</span><span class="kbd">Alt</span><span class="kbd">F</span>
+              </div>
+              <div class="set-row">
+                <div class="sl"><div class="t">显示状态栏题量</div><div class="d">在 IDE 右下角显示今日刷题数</div></div>
+                <div class="switch on" onclick="this.classList.toggle('on')"></div>
+              </div>
+
+              <div class="set-group">关于</div>
+              <div class="set-row">
+                <div class="sl"><div class="t">粉笔刷题 0.1.0</div><div class="d">非官方插件 · 仅个人学习使用 · 数据只在本地</div></div>
+                <button class="btn sm" onclick="toast('已复制反馈邮箱')">反馈</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tw-foot">
+          <span class="live">●</span><span>已登录 138****8888</span>
+          <span style="margin-left:auto">今日 42 题 · 正确率 76%</span>
+        </div>
+      </div>
+
+      <div class="tw-stripe"><span>粉笔刷题</span></div>
+    </div>
+
+    <div class="statusbar">
+      <span>⎇ main</span>
+      <span>UTF-8</span>
+      <span>Java 21</span>
+      <div class="ri">
+        <span class="ok">● 粉笔已连接</span>
+        <span>今日 42 题</span>
+        <span>76%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 登录弹窗 ===== -->
+<div class="backdrop" id="loginBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      登录粉笔
+      <button class="x" onclick="closeLogin()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="login-left">
+        <div class="addr"><span class="lock">🔒</span>www.fenbi.com/spa/tiku/xingce</div>
+        <div class="qr-area">
+          <div class="qr-frame">
+            <div class="qr" id="qr"></div>
+            <div class="qr-logo"><span>粉</span></div>
+          </div>
+          <div class="qr-cap">打开 <b>粉笔 App</b> → 扫一扫</div>
+          <button class="btn sm" onclick="simulateScan()">（演示）模拟扫码成功</button>
+        </div>
+      </div>
+      <div class="login-right">
+        <div class="lr-title">在 IDE 里扫码，登录态自动同步</div>
+        <ul class="lr-list">
+          <li>扫码成功后自动读取 Cookie，无需手动复制</li>
+          <li>Cookie 存入 IDEA 密码库（PasswordSafe），不写明文、不进日志</li>
+          <li>接口调用只发往 <b style="color:var(--dim)">tiku.fenbi.com</b>，不上传任何账号数据</li>
+          <li>登录态失效时会自动提示重新扫码</li>
+        </ul>
+        <div class="hint">
+          <b>提示：</b>本页由插件内嵌浏览器（JCEF）加载，与你在 Chrome 里登录粉笔是同一套 Cookie。
+          如果公司策略禁用了内嵌浏览器，可改用「手动粘贴 Cookie」。
+        </div>
+        <div class="alt">
+          <a onclick="toast('原型未实现：手机号验证码登录')">手机号登录</a> ·
+          <a onclick="toast('原型未实现：手动粘贴 Cookie')">手动粘贴 Cookie</a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span>● 等待扫码…</span>
+      <span class="sp"></span>
+      <span>扫码后会自动关闭本窗口</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- 数据 ---------------- */
+const QUESTIONS = [
+  {
+    cat: '数量关系',
+    type: '数学运算',
+    diff: '中等',
+    stem: '某单位共有职工 120 人，其中党员 45 人，女性 60 人，女性党员 20 人。问既不是党员也不是女性的职工有多少人？',
+    options: ['30 人', '35 人', '40 人', '45 人'],
+    answer: 1,
+    analysis: '党员或女性的人数 = 45 + 60 − 20 = 85 人（容斥原理：A∪B = A + B − A∩B）。<br>因此既不是党员也不是女性 = 120 − 85 = <b>35 人</b>。',
+    tags: ['容斥原理', '两集合'],
+    rate: '68%'
+  },
+  {
+    cat: '言语理解与表达',
+    type: '逻辑填空',
+    diff: '较易',
+    stem: '在信息爆炸的时代，真正稀缺的不是信息，而是______信息的能力。',
+    options: ['甄别', '辨别', '识别', '区分'],
+    answer: 0,
+    analysis: '“甄别”侧重<b>审查、鉴别真伪优劣</b>，与“信息”搭配最贴切，且与“稀缺”形成呼应。<br>“辨别/识别/区分”只强调分出不同，缺少“审查筛选”的语义。',
+    tags: ['实词辨析', '语境对应'],
+    rate: '74%'
+  },
+  {
+    cat: '判断推理',
+    type: '逻辑判断',
+    diff: '中等',
+    stem: '所有程序员都懂逻辑，小明懂逻辑。由此可以推出：',
+    options: ['小明是程序员', '小明不是程序员', '小明可能是程序员', '小明一定不懂逻辑'],
+    answer: 2,
+    analysis: '题干结构：程序员 → 懂逻辑（P → Q），已知 Q 成立。<br>肯定后件不能推出前件，因此只能得出<b>“可能”</b>的结论，选 C。',
+    tags: ['充分条件', '肯定后件'],
+    rate: '61%'
+  }
+];
+
+const state = {
+  tab: 'bank',
+  qIndex: 0,
+  answered: false,
+  chosen: -1,
+  seconds: 134,
+  timerId: null,
+  results: [],
+  bankTab: 'xingce',
+  loggedIn: true
+};
+let currentCat = '数量关系';
+
+/* ---------------- 视图切换 ---------------- */
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => {
+    v.classList.toggle('active', v.dataset.view === name);
+  });
+}
+function switchTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tw-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  if (tab === 'bank') {
+    showView('bank');
+    stopTimer();
+  } else if (tab === 'wrong') {
+    showView('wrong');
+  } else if (tab === 'stats') {
+    showView('stats');
+  } else if (tab === 'settings') {
+    showView('settings');
+  }
+  if (tab !== 'quiz') stopTimer();
+}
+function switchBank(kind) {
+  state.bankTab = kind;
+  document.getElementById('segX').classList.toggle('active', kind === 'xingce');
+  document.getElementById('segS').classList.toggle('active', kind === 'shenlun');
+  document.getElementById('xingceList').style.display = kind === 'xingce' ? '' : 'none';
+  document.getElementById('shenlunList').style.display = kind === 'shenlun' ? '' : 'none';
+}
+
+/* ---------------- 做题 ---------------- */
+function startQuiz(cat) {
+  currentCat = cat || currentCat || '数量关系';
+  state.qIndex = 0;
+  state.results = new Array(QUESTIONS.length).fill(null);
+  state.seconds = 0;
+  switchTab('bank');
+  showView('quiz');
+  document.getElementById('quizCat').textContent = currentCat;
+  renderQuestion();
+  startTimer();
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[state.qIndex];
+  state.answered = false;
+  state.chosen = -1;
+
+  document.getElementById('quizCount').textContent = `第 ${state.qIndex + 1} / ${QUESTIONS.length} 题`;
+  document.getElementById('progBar').style.width = ((state.qIndex + 1) / QUESTIONS.length * 100) + '%';
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.disabled = true;
+  nextBtn.textContent = state.qIndex === QUESTIONS.length - 1 ? '交卷' : '下一题';
+
+  const html = `
+    <div class="q-head">
+      <span class="badge blue">${q.type}</span>
+      <span class="badge gray">${q.diff}</span>
+      <span class="badge">单选</span>
+      <span class="q-idx">NO.${state.qIndex + 1}</span>
+    </div>
+    <div class="stem">${q.stem}</div>
+    <div class="opts" id="opts">
+      ${q.options.map((o, i) => `
+        <button class="opt" data-i="${i}" onclick="answer(${i})">
+          <span class="opt-key">${'ABCD'[i]}</span>
+          <span class="opt-text">${o}</span>
+          <span class="opt-mark"></span>
+        </button>`).join('')}
+    </div>
+    <div class="analysis" id="analysis">
+      <div class="an-head">
+        <span class="res-tag" id="resTag">回答正确</span>
+        <span>正确答案 <b id="ansKey">B</b></span>
+        <span style="margin-left:auto;font-size:11px;color:var(--mute)">正确率 <span id="ansRate">${q.rate}</span></span>
+      </div>
+      <div class="an-body">
+        <div class="an-label">解析</div>
+        <div id="anText"></div>
+        <div class="tags" id="anTags"></div>
+      </div>
+    </div>`;
+  document.getElementById('quizScroll').innerHTML = html;
+  document.getElementById('quizScroll').scrollTop = 0;
+}
+
+function answer(i) {
+  if (state.answered) return;
+  const q = QUESTIONS[state.qIndex];
+  state.answered = true;
+  state.chosen = i;
+  const ok = i === q.answer;
+  state.results[state.qIndex] = ok;
+
+  document.querySelectorAll('#opts .opt').forEach((el, idx) => {
+    el.classList.add('locked');
+    el.onclick = null;
+    if (idx === q.answer) {
+      el.classList.add('correct');
+      el.querySelector('.opt-mark').textContent = '✓';
+    } else if (idx === i) {
+      el.classList.add('wrong');
+      el.querySelector('.opt-mark').textContent = '✗';
+    } else {
+      el.classList.add('dim');
+    }
+  });
+
+  const tag = document.getElementById('resTag');
+  tag.textContent = ok ? '回答正确' : '回答错误';
+  tag.className = 'res-tag ' + (ok ? 'ok' : 'no');
+  document.getElementById('ansKey').textContent = 'ABCD'[q.answer];
+  document.getElementById('anText').innerHTML = q.analysis;
+  document.getElementById('anTags').innerHTML = q.tags.map(t => `<span class="tag">${t}</span>`).join('');
+  document.getElementById('analysis').classList.add('show');
+
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.disabled = false;
+  nextBtn.focus();
+}
+
+function nextQ() {
+  if (!state.answered) return;
+  if (state.qIndex < QUESTIONS.length - 1) {
+    state.qIndex++;
+    renderQuestion();
+  } else {
+    finishQuiz();
+  }
+}
+function prevQ() {
+  if (state.qIndex > 0) {
+    state.qIndex--;
+    renderQuestion();
+  }
+}
+function finishQuiz() {
+  stopTimer();
+  const done = state.results.filter(r => r !== null);
+  const ok = done.filter(Boolean).length;
+  const pct = done.length ? Math.round(ok / done.length * 100) : 0;
+  document.getElementById('scoreNum').innerHTML = pct + '<small>%</small>';
+  document.getElementById('okNum').textContent = ok;
+  document.getElementById('noNum').textContent = done.length - ok;
+  showView('result');
+}
+
+/* ---------------- 计时 ---------------- */
+function startTimer() {
+  stopTimer();
+  state.timerId = setInterval(() => {
+    state.seconds++;
+    const m = String(Math.floor(state.seconds / 60)).padStart(2, '0');
+    const s = String(state.seconds % 60).padStart(2, '0');
+    const el = document.getElementById('timer');
+    if (el) el.textContent = m + ':' + s;
+  }, 1000);
+}
+function stopTimer() {
+  if (state.timerId) { clearInterval(state.timerId); state.timerId = null; }
+}
+
+/* ---------------- 申论 ---------------- */
+function openEssay() {
+  switchTab('bank');
+  showView('essay');
+  state.seconds = 760;
+  const m = String(Math.floor(state.seconds / 60)).padStart(2, '0');
+  document.querySelector('.view[data-view="essay"] .timer').textContent = m + ':40';
+}
+function updateWordCount() {
+  const n = document.getElementById('essayInput').value.replace(/\s/g, '').length;
+  document.getElementById('wordCount').textContent = n + ' / 300 字';
+}
+function toggleRef() {
+  document.getElementById('refBox').classList.toggle('show');
+}
+
+/* ---------------- 登录 ---------------- */
+function openLogin() { document.getElementById('loginBackdrop').classList.add('show'); }
+function closeLogin() { document.getElementById('loginBackdrop').classList.remove('show'); }
+function simulateScan() {
+  closeLogin();
+  state.loggedIn = true;
+  toast('登录成功，已保存 Cookie 到密码库');
+  switchTab('bank');
+}
+function makeQR() {
+  const el = document.getElementById('qr');
+  if (!el) return;
+  el.innerHTML = '';
+  let seed = 20261022;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const n = 25;
+  const inFinder = (r, c) =>
+    (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const cell = document.createElement('i');
+      let on = false;
+      if (inFinder(r, c)) {
+        const rr = r < 7 ? r : r - (n - 7);
+        const cc = c < 7 ? c : c - (n - 7);
+        const border = rr === 0 || rr === 6 || cc === 0 || cc === 6;
+        const core = rr >= 2 && rr <= 4 && cc >= 2 && cc <= 4;
+        on = border || core;
+      } else if ((r < 8 && c < 8) || (r < 8 && c >= n - 8) || (r >= n - 8 && c < 8)) {
+        on = false;
+      } else {
+        on = rnd() > 0.52;
+      }
+      cell.className = on ? 'on' : '';
+      el.appendChild(cell);
+    }
+  }
+}
+
+/* ---------------- 设置 ---------------- */
+function pickChip(btn) {
+  btn.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+/* ---------------- 主题 / 提示 ---------------- */
+function toggleTheme() {
+  const light = document.body.classList.toggle('light');
+  document.querySelectorAll('.sbtn').forEach(b => {
+    if (b.textContent.includes('浅色') || b.textContent.includes('深色')) {
+      b.textContent = light ? '切换深色' : '切换浅色';
+    }
+  });
+}
+function toast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:#111318;color:#e6e9ef;' +
+    'border:1px solid #3a3d43;padding:8px 16px;border-radius:8px;font-size:12px;z-index:99;' +
+    'box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;transition:.18s';
+  document.body.appendChild(t);
+  requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(-6px)'; });
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 200); }, 1800);
+}
+function resetDemo() {
+  closeLogin();
+  switchTab('bank');
+  switchBank('xingce');
+  stopTimer();
+  state.qIndex = 0;
+  toast('演示已重置');
+}
+
+/* ---------------- 初始化 ---------------- */
+makeQR();
+document.addEventListener('keydown', e => {
+  const view = document.querySelector('.view.active');
+  if (!view) return;
+  if (view.dataset.view === 'quiz') {
+    if (['1','2','3','4'].includes(e.key)) answer(parseInt(e.key) - 1);
+    if (e.key === 'Enter' || e.key === 'ArrowRight') { if (state.answered) nextQ(); }
+    if (e.key === 'ArrowLeft') prevQ();
+  }
+  if (e.key === 'Escape') closeLogin();
+});
+</script>
+</body>
+</html>

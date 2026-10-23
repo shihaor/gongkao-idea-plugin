@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<idea-plugin>
+    <id>com.fenbi.plugin.quiz</id>
+    <name>刷帮帮</name>
+    <vendor>personal</vendor>
+
+    <description><![CDATA[
+        在 IDE 里刷行测 / 申论题。<br/>
+        首次授权后直接拉题：题库分类、逐题作答、交卷查看解析、本地错题本。<br/>
+        可选接入大模型 / OpenClaw：定时问询练习计划，做完回传成绩做薄弱点分析。<br/>
+        非官方插件，仅个人学习使用，授权信息只保存在本机。
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="刷帮帮"
+                    anchor="right"
+                    icon="AllIcons.Actions.Lightning"
+                    factoryClass="com.fenbi.plugin.FenbiToolWindowFactory"
+                    canCloseContents="false"/>
+        <applicationService serviceImplementation="com.fenbi.plugin.service.FenbiSession"/>
+        <applicationService serviceImplementation="com.fenbi.plugin.service.PlanService"/>
+        <applicationService serviceImplementation="com.fenbi.plugin.service.SecureConfig"/>
+        <applicationService serviceImplementation="com.fenbi.plugin.service.WrongBook"/>
+        <applicationService serviceImplementation="com.fenbi.plugin.service.Stats"/>
+        <postStartupActivity implementation="com.fenbi.plugin.PlanStartupActivity"/>
+        <notificationGroup id="ShuaBangBang" displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <action id="Fenbi.Toggle"
+                class="com.fenbi.plugin.FenbiToggleAction"
+                text="刷帮帮"
+                description="显示 / 隐藏刷帮帮面板">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt F"/>
+        </action>
+    </actions>
+</idea-plugin>
